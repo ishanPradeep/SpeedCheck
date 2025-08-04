@@ -39,7 +39,9 @@ interface TestHistoryProps {
 
 export default function TestHistory({ history, isDarkMode = true, onRefresh }: TestHistoryProps) {
   const clearHistory = () => {
-    localStorage.removeItem('speedtest-history');
+            if (typeof window !== 'undefined') {
+          localStorage.removeItem('speedtest-history');
+        }
     window.location.reload();
   };
 

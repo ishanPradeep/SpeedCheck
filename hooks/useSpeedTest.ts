@@ -84,94 +84,104 @@ export function useSpeedTest() {
     }
   }, [history]);
 
-  const loadHistory = () => {
-    try {
-      const saved = localStorage.getItem('speedtest-history');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        
-        // Validate that parsed data is an array
-        if (!Array.isArray(parsed)) {
-          console.warn('History data is not an array, clearing invalid data');
-          localStorage.removeItem('speedtest-history');
+  const loadHistory = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('speedtest-history');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          
+          // Validate that parsed data is an array
+          if (!Array.isArray(parsed)) {
+            console.warn('History data is not an array, clearing invalid data');
+            localStorage.removeItem('speedtest-history');
+            setHistory([]);
+            return;
+          }
+
+          // Map and validate each item
+          const validHistory = parsed
+            .filter((item: any) => {
+              // Check if item has required properties
+              return item && 
+                     typeof item.id === 'string' &&
+                     typeof item.downloadSpeed === 'number' &&
+                     typeof item.uploadSpeed === 'number' &&
+                     typeof item.ping === 'number' &&
+                     item.timestamp;
+            })
+            .map((item: any) => ({
+              ...item,
+              timestamp: new Date(item.timestamp),
+              // Ensure all required fields are present
+              id: item.id || Date.now().toString(),
+              downloadSpeed: Number(item.downloadSpeed) || 0,
+              uploadSpeed: Number(item.uploadSpeed) || 0,
+              ping: Number(item.ping) || 0,
+              jitter: Number(item.jitter) || 0,
+              server: item.server || 'Auto',
+              ip: item.ip || '',
+              grade: item.grade || 'F'
+            }))
+            .sort((a: TestResult, b: TestResult) => 
+              b.timestamp.getTime() - a.timestamp.getTime()
+            );
+
+          console.log(`Loaded ${validHistory.length} history items`);
+          setHistory(validHistory);
+        } else {
+          console.log('No history data found in localStorage');
           setHistory([]);
-          return;
         }
-
-        // Map and validate each item
-        const validHistory = parsed
-          .filter((item: any) => {
-            // Check if item has required properties
-            return item && 
-                   typeof item.id === 'string' &&
-                   typeof item.downloadSpeed === 'number' &&
-                   typeof item.uploadSpeed === 'number' &&
-                   typeof item.ping === 'number' &&
-                   item.timestamp;
-          })
-          .map((item: any) => ({
-            ...item,
-            timestamp: new Date(item.timestamp),
-            // Ensure all required fields are present
-            id: item.id || Date.now().toString(),
-            downloadSpeed: Number(item.downloadSpeed) || 0,
-            uploadSpeed: Number(item.uploadSpeed) || 0,
-            ping: Number(item.ping) || 0,
-            jitter: Number(item.jitter) || 0,
-            server: item.server || 'Auto',
-            ip: item.ip || '',
-            grade: item.grade || 'F'
-          }))
-          .sort((a: TestResult, b: TestResult) => 
-            b.timestamp.getTime() - a.timestamp.getTime()
-          );
-
-        console.log(`Loaded ${validHistory.length} history items`);
-        setHistory(validHistory);
-      } else {
-        console.log('No history data found in localStorage');
+      } catch (error) {
+        console.error('Failed to load history:', error);
+        // Clear corrupted data
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('speedtest-history');
+        }
         setHistory([]);
       }
-    } catch (error) {
-      console.error('Failed to load history:', error);
-      // Clear corrupted data
-      localStorage.removeItem('speedtest-history');
-      setHistory([]);
     }
-  };
+  }, []);
 
-  const saveToHistory = (result: TestResult) => {
-    try {
-      // Ensure the result has all required fields
-      const validResult: TestResult = {
-        id: result.id || Date.now().toString(),
-        timestamp: result.timestamp || new Date(),
-        downloadSpeed: Number(result.downloadSpeed) || 0,
-        uploadSpeed: Number(result.uploadSpeed) || 0,
-        ping: Number(result.ping) || 0,
-        jitter: Number(result.jitter) || 0,
-        server: result.server || 'Auto',
-        ip: result.ip || '',
-        grade: result.grade || 'F'
-      };
 
-      const newHistory = [validResult, ...history].slice(0, 50); // Keep last 50 tests
-      setHistory(newHistory);
-      
-      // Save to localStorage
-      localStorage.setItem('speedtest-history', JSON.stringify(newHistory));
-      console.log(`Saved test result to history. Total items: ${newHistory.length}`);
-    } catch (error) {
-      console.error('Failed to save to history:', error);
-      // Try to save just the current result if the full history fails
+
+  const saveToHistory = useCallback((result: TestResult) => {
+    if (typeof window !== 'undefined') {
       try {
-        localStorage.setItem('speedtest-history', JSON.stringify([result]));
-        console.log('Saved single test result as fallback');
-      } catch (fallbackError) {
-        console.error('Failed to save even single result:', fallbackError);
+        // Ensure the result has all required fields
+        const validResult: TestResult = {
+          id: result.id || Date.now().toString(),
+          timestamp: result.timestamp || new Date(),
+          downloadSpeed: Number(result.downloadSpeed) || 0,
+          uploadSpeed: Number(result.uploadSpeed) || 0,
+          ping: Number(result.ping) || 0,
+          jitter: Number(result.jitter) || 0,
+          server: result.server || 'Auto',
+          ip: result.ip || '',
+          grade: result.grade || 'F'
+        };
+
+        const newHistory = [validResult, ...history].slice(0, 50); // Keep last 50 tests
+        setHistory(newHistory);
+        
+        // Save to localStorage
+        localStorage.setItem('speedtest-history', JSON.stringify(newHistory));
+        console.log(`Saved test result to history. Total items: ${newHistory.length}`);
+      } catch (error) {
+        console.error('Failed to save to history:', error);
+        // Try to save just the current result if the full history fails
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('speedtest-history', JSON.stringify([result]));
+          }
+          console.log('Saved single test result as fallback');
+        } catch (fallbackError) {
+          console.error('Failed to save even single result:', fallbackError);
+        }
       }
     }
-  };
+  }, [history]);
 
   const detectUserInfo = async () => {
     try {
@@ -1008,7 +1018,7 @@ export function useSpeedTest() {
         setProgress(0);
       }, 1000);
     }
-  }, [isRunning, userInfo, results.downloadSpeed]);
+  }, [isRunning, userInfo, measureUploadSpeed, saveToHistory]);
 
   const resetTest = () => {
     setResults({
@@ -1026,6 +1036,29 @@ export function useSpeedTest() {
     loadHistory();
   };
 
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('speedtest-history');
+    }
+  }, []);
+
+  const saveResult = useCallback((result: TestResult) => {
+    if (typeof window !== 'undefined') {
+      try {
+        // Save to localStorage
+        const newHistory = [result, ...history];
+        localStorage.setItem('speedtest-history', JSON.stringify(newHistory));
+        setHistory(newHistory);
+      } catch (error) {
+        console.error('Error saving result:', error);
+        // Fallback: save only the new result
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('speedtest-history', JSON.stringify([result]));
+        }
+      }
+    }
+  }, [history]);
 
 
   return {

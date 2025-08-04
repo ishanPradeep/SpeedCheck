@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
+import Progress from '@/components/ui/custom-progress';
 import { Switch } from '@/components/ui/switch';
 import { 
   Wifi, 
@@ -288,6 +288,7 @@ export default function Home() {
                       <Progress 
                         value={progress} 
                         className="w-full max-w-md mx-auto h-3"
+                        aria-label="Speed test progress"
                       />
                       <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {getProgressText()}
@@ -448,7 +449,7 @@ export default function Home() {
             />
           </TabsContent>
 
-                      <TabsContent value="history">
+          <TabsContent value="history">
               <TestHistory
                 history={history}
                 isDarkMode={isDarkMode}
