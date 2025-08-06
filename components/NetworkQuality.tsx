@@ -71,8 +71,10 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
   };
 
   useEffect(() => {
-    // Load data on component mount
-    fetchNetworkData();
+    // Only fetch data in the browser, not during SSR or static generation
+    if (typeof window !== 'undefined') {
+      fetchNetworkData();
+    }
   }, []);
 
   // Use API data if available, otherwise fall back to props

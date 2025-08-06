@@ -56,9 +56,12 @@ export function useSpeedTest() {
 
   // Load history and user info on mount
   useEffect(() => {
-    console.log('Component mounted, loading history and user info...');
-    loadHistory();
-    detectUserInfo();
+    // Only run in the browser, not during SSR or static generation
+    if (typeof window !== 'undefined') {
+      console.log('Component mounted, loading history and user info...');
+      loadHistory();
+      detectUserInfo();
+    }
   }, []);
 
   // Add a separate effect to handle history updates

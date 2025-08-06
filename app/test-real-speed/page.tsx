@@ -4,8 +4,14 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface TestResults {
+  ping?: number;
+  download?: number;
+  upload?: number;
+}
+
 export default function TestRealSpeedPage() {
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<TestResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
 
@@ -32,7 +38,7 @@ export default function TestRealSpeedPage() {
         const data = await response.json();
         const measuredPing = endTime - startTime;
         addLog(`Ping test successful: ${measuredPing.toFixed(2)}ms (API: ${data.ping}ms)`);
-        setResults(prev => ({ ...prev, ping: measuredPing }));
+        setResults((prev: TestResults | null) => ({ ...prev, ping: measuredPing }));
       } else {
         addLog('Ping test failed');
       }
@@ -88,7 +94,7 @@ export default function TestRealSpeedPage() {
       
       const avgSpeed = (totalBytes * 8) / (totalTime * 1000000);
       addLog(`Average download speed: ${avgSpeed.toFixed(2)} Mbps`);
-      setResults(prev => ({ ...prev, download: avgSpeed }));
+      setResults((prev: TestResults | null) => ({ ...prev, download: avgSpeed }));
       
     } catch (error) {
       addLog(`Download test error: ${error}`);
@@ -145,7 +151,7 @@ export default function TestRealSpeedPage() {
       
       const avgSpeed = (totalBytes * 8) / (totalTime * 1000000);
       addLog(`Average upload speed: ${avgSpeed.toFixed(2)} Mbps`);
-      setResults(prev => ({ ...prev, upload: avgSpeed }));
+      setResults((prev: TestResults | null) => ({ ...prev, upload: avgSpeed }));
       
     } catch (error) {
       addLog(`Upload test error: ${error}`);
