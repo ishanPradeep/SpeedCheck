@@ -696,46 +696,40 @@ export function useSpeedTest() {
 
   const measurePing = async (): Promise<number> => {
     const measurements: number[] = [];
-    const testUrls = [
-      '/api/ping',
-      'https://www.google.com',
-      'https://www.cloudflare.com',
-      'https://www.amazon.com',
-      'https://www.microsoft.com',
-      'https://www.facebook.com',
-      'https://www.netflix.com',
-      'https://www.youtube.com'
-    ];
     
-    // Take multiple ping measurements to different servers for accuracy
-    for (let i = 0; i < 8; i++) {
+    // Take multiple ping measurements to our own API for accuracy
+    for (let i = 0; i < 10; i++) {
       const startTime = performance.now();
-      const url = testUrls[i % testUrls.length];
       
       try {
-        const response = await fetch(url, { 
-          method: 'HEAD', 
+        const response = await fetch('/api/ping', { 
+          method: 'GET', 
           cache: 'no-cache',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           },
-          signal: AbortSignal.timeout(5000) // 5 second timeout
+          signal: AbortSignal.timeout(10000) // Increased to 10 seconds for first test
         });
-        
+      
         if (response.ok) {
           const endTime = performance.now();
           const pingTime = endTime - startTime;
           measurements.push(pingTime);
+          console.log(`Ping test ${i + 1}: ${pingTime}ms`);
         }
       } catch (error) {
-        // If external URLs fail, use a reasonable fallback
-        const fallbackPing = Math.floor(Math.random() * 30) + 20;
-        measurements.push(fallbackPing);
+        console.error(`Ping test ${i + 1} failed:`, error);
+        // Continue with next test
       }
       
       // Small delay between measurements
-      if (i < 7) await new Promise(resolve => setTimeout(resolve, 200));
+      if (i < 9) await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    if (measurements.length === 0) {
+      console.warn('All ping tests failed');
+      throw new Error('Ping test failed - no successful measurements');
     }
     
     // Calculate average ping, excluding outliers
@@ -743,34 +737,27 @@ export function useSpeedTest() {
     const middleMeasurements = sortedMeasurements.slice(2, -2); // Remove 2 highest and 2 lowest
     const avgPing = Math.round(middleMeasurements.reduce((a, b) => a + b, 0) / middleMeasurements.length);
     
+    console.log(`Average ping: ${avgPing}ms (from ${measurements.length} measurements)`);
     return Math.max(avgPing, 5); // Minimum 5ms ping
   };
 
   const measureJitter = async (): Promise<number> => {
     const measurements: number[] = [];
-    const testUrls = [
-      '/api/ping',
-      'https://www.google.com',
-      'https://www.cloudflare.com',
-      'https://www.microsoft.com',
-      'https://www.facebook.com'
-    ];
     
     // Take multiple measurements for jitter calculation
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
       const startTime = performance.now();
-      const url = testUrls[i % testUrls.length];
       
-      try {
-        const response = await fetch(url, { 
-          method: 'HEAD', 
-          cache: 'no-cache',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          },
-          signal: AbortSignal.timeout(3000) // 3 second timeout
-        });
+              try {
+          const response = await fetch('/api/ping', { 
+            method: 'GET', 
+            cache: 'no-cache',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            },
+            signal: AbortSignal.timeout(2000) // 2 second timeout
+          });
         
         if (response.ok) {
           const endTime = performance.now();
@@ -778,12 +765,17 @@ export function useSpeedTest() {
           measurements.push(pingTime);
         }
       } catch (error) {
-        const fallbackPing = Math.floor(Math.random() * 20) + 10;
-        measurements.push(fallbackPing);
+        console.error(`Jitter test ${i + 1} failed:`, error);
+        // Continue with next test
       }
       
       // Small delay between measurements
-      if (i < 14) await new Promise(resolve => setTimeout(resolve, 100));
+      if (i < 19) await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    if (measurements.length === 0) {
+      console.warn('All jitter tests failed');
+      throw new Error('Jitter test failed - no successful measurements');
     }
     
     // Calculate jitter (standard deviation of ping times)
@@ -791,72 +783,138 @@ export function useSpeedTest() {
     const variance = measurements.reduce((sum, ping) => sum + Math.pow(ping - avgPing, 2), 0) / measurements.length;
     const jitter = Math.round(Math.sqrt(variance));
     
+    console.log(`Jitter calculation: ${jitter}ms (from ${measurements.length} measurements, avg: ${Math.round(avgPing)}ms)`);
     return Math.max(jitter, 1); // Minimum 1ms jitter
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
     const testSizes = [1, 2, 5, 10]; // MB
-    let totalBytes = 0;
-    let totalTime = 0;
+    const individualSpeeds: number[] = [];
     let successfulTests = 0;
     
-    // Test download speed using the speed test API
+    console.log('🚀 Starting download speed test...');
+    console.log(`📊 Test sizes: ${testSizes.join(', ')} MB`);
+    
     for (let i = 0; i < testSizes.length; i++) {
       const size = testSizes[i];
+      const sizeInBytes = size * 1024 * 1024;
       onProgress((i / testSizes.length) * 100);
       
+      console.log(`\n📥 Download test ${i + 1}/${testSizes.length}: ${size}MB (${sizeInBytes} bytes)`);
+      
       try {
+        // Measure the entire request-response cycle for accurate network timing
+        const startTime = performance.now();
+        console.log(`⏱️  Starting request at ${new Date().toISOString()}`);
+        
         const response = await fetch('/api/speed-test', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'X-Test-Id': `download-${Date.now()}-${i}`,
           },
           body: JSON.stringify({
             type: 'download',
-            size: size * 1024 * 1024 // Convert to bytes
-          })
+            size: sizeInBytes
+          }),
+          signal: AbortSignal.timeout(30000) // 30 second timeout for large files
         });
         
+        console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+        console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()));
+        
         if (response.ok) {
-          const data = await response.json();
-          totalBytes += data.size;
-          totalTime += data.duration / 1000; // Convert to seconds
+          console.log(`📥 Starting to read response data...`);
+          const dataStartTime = performance.now();
+          
+          // Read the data (this is part of the network transfer)
+          const data = await response.arrayBuffer();
+          const dataEndTime = performance.now();
+          
+          const endTime = performance.now();
+          const totalDuration = endTime - startTime;
+          const dataReadDuration = dataEndTime - dataStartTime;
+          const dataSize = data.byteLength;
+          
+          console.log(`📊 Data received: ${dataSize} bytes`);
+          console.log(`⏱️  Total duration: ${totalDuration.toFixed(2)}ms`);
+          console.log(`⏱️  Data read duration: ${dataReadDuration.toFixed(2)}ms`);
+          
+          // Verify data size matches expected size
+          const expectedSize = sizeInBytes;
+          const sizeDifference = Math.abs(dataSize - expectedSize);
+          const sizeAccuracy = ((expectedSize - sizeDifference) / expectedSize) * 100;
+          
+          console.log(`📏 Expected size: ${expectedSize} bytes`);
+          console.log(`📏 Actual size: ${dataSize} bytes`);
+          console.log(`📏 Size accuracy: ${sizeAccuracy.toFixed(2)}%`);
+          
+          if (sizeAccuracy < 95) {
+            console.warn(`⚠️  Size mismatch detected! Expected: ${expectedSize}, Got: ${dataSize}`);
+          }
+          
+          const speed = (dataSize * 8) / (totalDuration * 1000); // Mbps - Fixed calculation
+          
+          individualSpeeds.push(speed);
           successfulTests++;
+          
+          console.log(`✅ Download test ${i + 1}: ${size}MB in ${totalDuration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
+          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits) ÷ (${totalDuration.toFixed(2)}ms × 1,000) = ${speed.toFixed(2)} Mbps`);
+        } else {
+          console.error(`❌ Response not OK: ${response.status} ${response.statusText}`);
+          try {
+            const errorText = await response.text();
+            console.error(`❌ Error response body:`, errorText);
+          } catch (e) {
+            console.error(`❌ Could not read error response:`, e);
+          }
         }
         
-        // Add realistic delay between tests
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 200 + 100));
+        // Small delay between tests
+        console.log(`⏳ Waiting 100ms before next test...`);
+        await new Promise(resolve => setTimeout(resolve, 100));
         
       } catch (error) {
-        console.error(`Download test ${i} failed:`, error);
-        // Fallback calculation for failed tests
-        const fallbackSpeed = Math.max(Math.random() * 30 + 10, 5); // 5-35 Mbps
-        totalBytes += size * 1024 * 1024;
-        totalTime += (size * 1024 * 1024 * 8) / (fallbackSpeed * 1000000);
+        console.error(`❌ Download test ${i + 1} failed:`, error);
+        
+        if (error instanceof TypeError) {
+          console.error(`🔍 TypeError details:`, error.message);
+        } else if (error instanceof Error) {
+          console.error(`🔍 Error details:`, error.message);
+          console.error(`🔍 Error stack:`, error.stack);
+        }
+        
+        // Continue with next test
       }
     }
     
+    console.log(`\n📊 Download test summary:`);
+    console.log(`✅ Successful tests: ${successfulTests}/${testSizes.length}`);
+    console.log(`📈 Individual speeds: [${individualSpeeds.map(s => s.toFixed(2)).join(', ')}] Mbps`);
+    
     if (successfulTests === 0) {
-      // Fallback calculation if all tests fail
-      return Math.max(Math.random() * 50 + 10, 5); // 5-55 Mbps fallback
+      console.error('❌ All download tests failed');
+      console.error('🔍 Possible causes:');
+      console.error('   - Network connectivity issues');
+      console.error('   - Server not responding');
+      console.error('   - API endpoint not working');
+      console.error('   - Browser security restrictions');
+      console.error('   - Timeout issues');
+      throw new Error('Download test failed - no successful measurements');
     }
     
-    // Calculate speed in Mbps
-    const speedMbps = (totalBytes * 8) / (totalTime * 1000000);
+    // Calculate average speed from individual tests (like Speedtest.net)
+    const avgSpeed = individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
+    console.log(`📊 Average download speed: ${avgSpeed.toFixed(2)} Mbps (from ${individualSpeeds.length} tests)`);
     
-    // Apply realistic variations based on network conditions
-    const networkVariation = 0.15; // 15% variation
-    const variation = (Math.random() - 0.5) * 2 * networkVariation;
-    const finalSpeed = speedMbps * (1 + variation);
-    
-    return Math.max(finalSpeed, 0.5); // Minimum 0.5 Mbps
+    console.log(`📊 Final download speed: ${avgSpeed.toFixed(2)} Mbps`);
+    return avgSpeed;
   };
 
   const measureUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
     const testSizes = [0.5, 1, 2, 5]; // MB
-    let totalBytes = 0;
-    let totalTime = 0;
+    const individualSpeeds: number[] = [];
     let successfulTests = 0;
     
     for (let i = 0; i < testSizes.length; i++) {
@@ -864,53 +922,61 @@ export function useSpeedTest() {
       onProgress((i / testSizes.length) * 100);
       
       try {
+        // Generate test data to upload
+        const testData = new Uint8Array(size * 1024 * 1024);
+        const pattern = new Uint8Array(1024); // 1KB pattern for faster generation
+        for (let j = 0; j < pattern.length; j++) {
+          pattern[j] = Math.floor(Math.random() * 256);
+        }
+        
+        // Fill the data array with the pattern
+        for (let j = 0; j < testData.length; j++) {
+          testData[j] = pattern[j % pattern.length];
+        }
+        
+        const startTime = performance.now();
         const response = await fetch('/api/speed-test', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/octet-stream',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
-          body: JSON.stringify({
-            type: 'upload',
-            size: size * 1024 * 1024 // Convert to bytes
-          })
+          body: testData,
+          signal: AbortSignal.timeout(30000) // 30 second timeout for large files
         });
         
         if (response.ok) {
-          const data = await response.json();
-          totalBytes += data.size;
-          totalTime += data.duration / 1000; // Convert to seconds
+          const endTime = performance.now();
+          const duration = endTime - startTime;
+          const dataSize = size * 1024 * 1024; // bytes
+          const speed = (dataSize * 8) / (duration * 1000); // Mbps - Fixed calculation
+          
+          individualSpeeds.push(speed);
           successfulTests++;
+          
+          console.log(`Upload test ${i + 1}: ${size}MB in ${duration}ms = ${speed.toFixed(2)} Mbps`);
         }
         
-        // Add realistic delay between tests
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
+        // Small delay between tests
+        await new Promise(resolve => setTimeout(resolve, 100));
         
       } catch (error) {
         console.error(`Upload test ${i} failed:`, error);
-        // Fallback calculation for failed tests
-        const fallbackSpeed = Math.max(Math.random() * 15 + 5, 2); // 2-20 Mbps
-        totalBytes += size * 1024 * 1024;
-        totalTime += (size * 1024 * 1024 * 8) / (fallbackSpeed * 1000000);
+        // Continue with next test
       }
     }
     
     if (successfulTests === 0) {
-      // Fallback calculation
-      const downloadSpeed = results.downloadSpeed;
-      const uploadRatio = 0.1 + Math.random() * 0.3; // 10-40% of download speed
-      return Math.max(downloadSpeed * uploadRatio, 0.5);
+      console.warn('All upload tests failed');
+      throw new Error('Upload test failed - no successful measurements');
     }
     
-    // Calculate upload speed (typically slower than download)
-    const speedMbps = (totalBytes * 8) / (totalTime * 1000000);
+    // Calculate average speed from individual tests (like Speedtest.net)
+    const avgSpeed = individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
+    console.log(`📊 Average upload speed: ${avgSpeed.toFixed(2)} Mbps (from ${individualSpeeds.length} tests)`);
     
-    // Apply realistic upload speed characteristics
-    const uploadRatio = 0.1 + Math.random() * 0.4; // 10-50% of download speed
-    const downloadSpeed = results.downloadSpeed;
-    const realisticUploadSpeed = Math.min(speedMbps, downloadSpeed * uploadRatio);
-    
-    return Math.max(realisticUploadSpeed, 0.2); // Minimum 0.2 Mbps
+    console.log(`📊 Final upload speed: ${avgSpeed.toFixed(2)} Mbps`);
+    return avgSpeed;
   };
 
   const measureNetworkQuality = (downloadSpeed: number, uploadSpeed: number, ping: number, jitter: number) => {
