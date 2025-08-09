@@ -5,25 +5,28 @@ export async function POST(request: NextRequest) {
     const { type, size } = await request.json();
     
     const startTime = performance.now();
-    const timeout = parseInt(process.env.SPEED_TEST_TIMEOUT || '30000');
-    const maxFileSize = parseInt(process.env.SPEED_TEST_MAX_FILE_SIZE || '10485760');
-    const minFileSize = parseInt(process.env.SPEED_TEST_MIN_FILE_SIZE || '1048576');
+  // Use recommended timeouts and file sizes for reliability
+  const timeout = parseInt(process.env.SPEED_TEST_TIMEOUT || '60000'); // 60 seconds
+  const maxFileSize = parseInt(process.env.SPEED_TEST_MAX_FILE_SIZE || '5242880'); // 5MB
+  const minFileSize = parseInt(process.env.SPEED_TEST_MIN_FILE_SIZE || '524288'); // 0.5MB
     
     if (type === 'download') {
       // Real download speed test using actual data transfer
-      const dataSize = size || minFileSize;
-      
+      const dataSize = Math.min(Math.max(size || minFileSize, minFileSize), maxFileSize);
       if (dataSize > maxFileSize) {
         return new Response(JSON.stringify({ error: 'File size too large' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      
-      // Generate random data of the specified size
+      // Generate random data efficiently
       const data = new Uint8Array(dataSize);
+      const pattern = new Uint8Array(1024);
+      for (let i = 0; i < pattern.length; i++) {
+        pattern[i] = Math.floor(Math.random() * 256);
+      }
       for (let i = 0; i < dataSize; i++) {
-        data[i] = Math.floor(Math.random() * 256);
+        data[i] = pattern[i % pattern.length];
       }
       
       const endTime = performance.now();
@@ -48,8 +51,7 @@ export async function POST(request: NextRequest) {
     
     if (type === 'upload') {
       // Real upload speed test
-      const dataSize = size || minFileSize;
-      
+      const dataSize = Math.min(Math.max(size || minFileSize, minFileSize), maxFileSize);
       if (dataSize > maxFileSize) {
         return new Response(JSON.stringify({ error: 'File size too large' }), {
           status: 400,
@@ -108,9 +110,11 @@ export async function POST(request: NextRequest) {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
-    
-  } catch (error) {
-    return new Response(JSON.stringify({ error: 'Test failed' }), {
+  }
+  catch (error) {
+    // Improved error handling and logging
+    console.error('Speed test failed:', error);
+    return new Response(JSON.stringify({ error: 'Test failed', details: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

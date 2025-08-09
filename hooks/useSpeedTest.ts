@@ -165,7 +165,8 @@ export function useSpeedTest() {
           grade: result.grade || 'F'
         };
 
-        const newHistory = [validResult, ...history].slice(0, 50); // Keep last 50 tests
+  const historyLimit = Number(process.env.NEXT_PUBLIC_HISTORY_LIMIT) || 50;
+  const newHistory = [validResult, ...history].slice(0, historyLimit); // Configurable history limit
         setHistory(newHistory);
         
         // Save to localStorage
@@ -741,7 +742,8 @@ export function useSpeedTest() {
     const avgPing = Math.round(middleMeasurements.reduce((a, b) => a + b, 0) / middleMeasurements.length);
     
     console.log(`Average ping: ${avgPing}ms (from ${measurements.length} measurements)`);
-    return Math.max(avgPing, 5); // Minimum 5ms ping
+  const minPing = Number(process.env.NEXT_PUBLIC_MIN_PING) || 5;
+  return Math.max(avgPing, minPing); // Minimum ping from env
   };
 
   const measureJitter = async (): Promise<number> => {
@@ -787,11 +789,16 @@ export function useSpeedTest() {
     const jitter = Math.round(Math.sqrt(variance));
     
     console.log(`Jitter calculation: ${jitter}ms (from ${measurements.length} measurements, avg: ${Math.round(avgPing)}ms)`);
-    return Math.max(jitter, 1); // Minimum 1ms jitter
+  const minJitter = Number(process.env.NEXT_PUBLIC_MIN_JITTER) || 1;
+  return Math.max(jitter, minJitter); // Minimum jitter from env
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    const testSizes = [1, 2, 5, 10]; // MB
+    // Use environment variable or fallback to defaults
+    const envTestSizes = process.env.NEXT_PUBLIC_SPEED_TEST_SIZES;
+    const testSizes = envTestSizes
+      ? envTestSizes.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0)
+      : [1, 2, 5, 10]; // MB
     const individualSpeeds: number[] = [];
     let successfulTests = 0;
     
