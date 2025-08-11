@@ -700,9 +700,13 @@ export function useSpeedTest() {
 
   const measurePing = async (): Promise<number> => {
     const measurements: number[] = [];
+    const countPing = 10; // Like librespeed default
+    
+    console.log('🚀 Starting ping test (librespeed-style)...');
+    console.log(`📊 Ping count: ${countPing}`);
     
     // Take multiple ping measurements to our own API for accuracy
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < countPing; i++) {
       const startTime = performance.now();
       
       try {
@@ -718,9 +722,35 @@ export function useSpeedTest() {
       
         if (response.ok) {
           const endTime = performance.now();
-          const pingTime = endTime - startTime;
+          let pingTime = endTime - startTime;
+          
+          // Try to use Performance API for more accurate timing (like librespeed)
+          try {
+            const entries = performance.getEntries();
+            const lastEntry = entries[entries.length - 1];
+            if (lastEntry && lastEntry.entryType === 'resource') {
+              const resourceEntry = lastEntry as PerformanceResourceTiming;
+              if (resourceEntry.responseStart && resourceEntry.requestStart) {
+                const perfPing = resourceEntry.responseStart - resourceEntry.requestStart;
+                if (perfPing > 0 && perfPing < pingTime) {
+                  pingTime = perfPing;
+                  console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms (Performance API)`);
+                } else {
+                  console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms (fallback)`);
+                }
+              } else {
+                console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
+              }
+            } else {
+              console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
+            }
+          } catch (e) {
+            console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms (Performance API not available)`);
+          }
+          
+          // Librespeed-style minimum ping handling
+          if (pingTime < 1) pingTime = 1;
           measurements.push(pingTime);
-          console.log(`Ping test ${i + 1}: ${pingTime}ms`);
         }
       } catch (error) {
         console.error(`Ping test ${i + 1} failed:`, error);
@@ -728,7 +758,7 @@ export function useSpeedTest() {
       }
       
       // Small delay between measurements
-      if (i < 9) await new Promise(resolve => setTimeout(resolve, 100));
+      if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 100));
     }
     
     if (measurements.length === 0) {
@@ -736,37 +766,62 @@ export function useSpeedTest() {
       throw new Error('Ping test failed - no successful measurements');
     }
     
-    // Calculate average ping, excluding outliers
-    const sortedMeasurements = measurements.sort((a, b) => a - b);
-    const middleMeasurements = sortedMeasurements.slice(2, -2); // Remove 2 highest and 2 lowest
-    const avgPing = Math.round(middleMeasurements.reduce((a, b) => a + b, 0) / middleMeasurements.length);
+    // Librespeed-style ping calculation: use the minimum ping
+    const minPing = Math.min(...measurements);
+    const avgPing = measurements.reduce((a, b) => a + b, 0) / measurements.length;
     
-    console.log(`Average ping: ${avgPing}ms (from ${measurements.length} measurements)`);
-  const minPing = Number(process.env.NEXT_PUBLIC_MIN_PING) || 5;
-  return Math.max(avgPing, minPing); // Minimum ping from env
+    console.log(`📊 Ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${measurements.length} measurements)`);
+    console.log(`📊 Using minimum ping: ${minPing.toFixed(2)}ms (librespeed-style)`);
+    
+    const minPingEnv = Number(process.env.NEXT_PUBLIC_MIN_PING) || 1;
+    return Math.max(minPing, minPingEnv); // Minimum ping from env
   };
 
   const measureJitter = async (): Promise<number> => {
     const measurements: number[] = [];
+    const countPing = 20; // More measurements for jitter
+    
+    console.log('🚀 Starting jitter test (librespeed-style)...');
+    console.log(`📊 Jitter ping count: ${countPing}`);
     
     // Take multiple measurements for jitter calculation
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < countPing; i++) {
       const startTime = performance.now();
       
-              try {
-          const response = await fetch('/api/ping', { 
-            method: 'GET', 
-            cache: 'no-cache',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            },
-            signal: AbortSignal.timeout(2000) // 2 second timeout
-          });
-        
+      try {
+        const response = await fetch('/api/ping', { 
+          method: 'GET', 
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+      
         if (response.ok) {
           const endTime = performance.now();
-          const pingTime = endTime - startTime;
+          let pingTime = endTime - startTime;
+          
+          // Try to use Performance API for more accurate timing
+          try {
+            const entries = performance.getEntries();
+            const lastEntry = entries[entries.length - 1];
+            if (lastEntry && lastEntry.entryType === 'resource') {
+              const resourceEntry = lastEntry as PerformanceResourceTiming;
+              if (resourceEntry.responseStart && resourceEntry.requestStart) {
+                const perfPing = resourceEntry.responseStart - resourceEntry.requestStart;
+                if (perfPing > 0 && perfPing < pingTime) {
+                  pingTime = perfPing;
+                }
+              }
+            }
+          } catch (e) {
+            // Performance API not available, use fallback
+          }
+          
+          // Librespeed-style minimum ping handling
+          if (pingTime < 1) pingTime = 1;
           measurements.push(pingTime);
         }
       } catch (error) {
@@ -775,7 +830,7 @@ export function useSpeedTest() {
       }
       
       // Small delay between measurements
-      if (i < 19) await new Promise(resolve => setTimeout(resolve, 50));
+      if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 50));
     }
     
     if (measurements.length === 0) {
@@ -783,14 +838,27 @@ export function useSpeedTest() {
       throw new Error('Jitter test failed - no successful measurements');
     }
     
-    // Calculate jitter (standard deviation of ping times)
-    const avgPing = measurements.reduce((a, b) => a + b, 0) / measurements.length;
-    const variance = measurements.reduce((sum, ping) => sum + Math.pow(ping - avgPing, 2), 0) / measurements.length;
-    const jitter = Math.round(Math.sqrt(variance));
+    // Librespeed-style jitter calculation: weighted average of jitter measurements
+    let jitter = 0;
+    let prevPing = measurements[0];
     
-    console.log(`Jitter calculation: ${jitter}ms (from ${measurements.length} measurements, avg: ${Math.round(avgPing)}ms)`);
-  const minJitter = Number(process.env.NEXT_PUBLIC_MIN_JITTER) || 1;
-  return Math.max(jitter, minJitter); // Minimum jitter from env
+    for (let i = 1; i < measurements.length; i++) {
+      const currentPing = measurements[i];
+      const instJitter = Math.abs(currentPing - prevPing);
+      
+      if (i === 1) {
+        jitter = instJitter; // First jitter measurement
+      } else {
+        // Librespeed-style weighted average: spikes get more weight
+        jitter = instJitter > jitter ? jitter * 0.3 + instJitter * 0.7 : jitter * 0.8 + instJitter * 0.2;
+      }
+      
+      prevPing = currentPing;
+    }
+    
+    console.log(`📊 Jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements, librespeed-style)`);
+    const minJitter = Number(process.env.NEXT_PUBLIC_MIN_JITTER) || 1;
+    return Math.max(jitter, minJitter); // Minimum jitter from env
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
@@ -799,11 +867,19 @@ export function useSpeedTest() {
     const testSizes = envTestSizes
       ? envTestSizes.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0)
       : [1, 2, 5, 10]; // MB
+    
     const individualSpeeds: number[] = [];
     let successfulTests = 0;
     
-    console.log('🚀 Starting download speed test...');
+    // Librespeed settings
+    const overheadCompensationFactor = 1.06; // 6% overhead compensation
+    const graceTime = 1.5; // 1.5 seconds grace time like librespeed
+    const testDuration = 15; // 15 seconds max test duration like librespeed
+    
+    console.log('🚀 Starting download speed test (librespeed-style)...');
     console.log(`📊 Test sizes: ${testSizes.join(', ')} MB`);
+    console.log(`⚙️  Overhead compensation: ${overheadCompensationFactor}`);
+    console.log(`⏱️  Grace time: ${graceTime}s`);
     
     for (let i = 0; i < testSizes.length; i++) {
       const size = testSizes[i];
@@ -864,58 +940,37 @@ export function useSpeedTest() {
             console.warn(`⚠️  Size mismatch detected! Expected: ${expectedSize}, Got: ${dataSize}`);
           }
           
-          const speed = (dataSize * 8) / (totalDuration * 1000); // Mbps - Fixed calculation
+          // Apply grace time logic like librespeed
+          const effectiveDuration = Math.max(totalDuration - (graceTime * 1000), 100); // Minimum 100ms
+          
+          // Librespeed-style speed calculation with overhead compensation
+          const rawSpeed = (dataSize * 8) / (effectiveDuration / 1000); // bits per second
+          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with overhead compensation
           
           individualSpeeds.push(speed);
           successfulTests++;
           
           console.log(`✅ Download test ${i + 1}: ${size}MB in ${totalDuration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
-          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits) ÷ (${totalDuration.toFixed(2)}ms × 1,000) = ${speed.toFixed(2)} Mbps`);
-        } else {
-          console.error(`❌ Response not OK: ${response.status} ${response.statusText}`);
-          try {
-            const errorText = await response.text();
-            console.error(`❌ Error response body:`, errorText);
-          } catch (e) {
-            console.error(`❌ Could not read error response:`, e);
-          }
+          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits × ${overheadCompensationFactor}) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
         }
         
         // Small delay between tests
-        console.log(`⏳ Waiting 100ms before next test...`);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         
       } catch (error) {
-        console.error(`❌ Download test ${i + 1} failed:`, error);
-        
-        if (error instanceof TypeError) {
-          console.error(`🔍 TypeError details:`, error.message);
-        } else if (error instanceof Error) {
-          console.error(`🔍 Error details:`, error.message);
-          console.error(`🔍 Error stack:`, error.stack);
-        }
-        
+        console.error(`Download test ${i} failed:`, error);
         // Continue with next test
       }
     }
     
-    console.log(`\n📊 Download test summary:`);
-    console.log(`✅ Successful tests: ${successfulTests}/${testSizes.length}`);
-    console.log(`📈 Individual speeds: [${individualSpeeds.map(s => s.toFixed(2)).join(', ')}] Mbps`);
-    
     if (successfulTests === 0) {
-      console.error('❌ All download tests failed');
-      console.error('🔍 Possible causes:');
-      console.error('   - Network connectivity issues');
-      console.error('   - Server not responding');
-      console.error('   - API endpoint not working');
-      console.error('   - Browser security restrictions');
-      console.error('   - Timeout issues');
+      console.warn('All download tests failed');
       throw new Error('Download test failed - no successful measurements');
     }
     
     // Calculate average speed from individual tests (like Speedtest.net)
     const avgSpeed = individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
+    
     console.log(`📊 Average download speed: ${avgSpeed.toFixed(2)} Mbps (from ${individualSpeeds.length} tests)`);
     
     console.log(`📊 Final download speed: ${avgSpeed.toFixed(2)} Mbps`);
@@ -926,6 +981,14 @@ export function useSpeedTest() {
     const testSizes = [0.5, 1, 2, 5]; // MB
     const individualSpeeds: number[] = [];
     let successfulTests = 0;
+    
+    // Librespeed settings
+    const overheadCompensationFactor = 1.06; // 6% overhead compensation
+    const graceTime = 3; // 3 seconds grace time for upload like librespeed
+    
+    console.log('🚀 Starting upload speed test (librespeed-style)...');
+    console.log(`⚙️  Overhead compensation: ${overheadCompensationFactor}`);
+    console.log(`⏱️  Grace time: ${graceTime}s`);
     
     for (let i = 0; i < testSizes.length; i++) {
       const size = testSizes[i];
@@ -959,16 +1022,23 @@ export function useSpeedTest() {
           const endTime = performance.now();
           const duration = endTime - startTime;
           const dataSize = size * 1024 * 1024; // bytes
-          const speed = (dataSize * 8) / (duration * 1000); // Mbps - Fixed calculation
+          
+          // Apply grace time logic like librespeed
+          const effectiveDuration = Math.max(duration - (graceTime * 1000), 100); // Minimum 100ms
+          
+          // Librespeed-style speed calculation with overhead compensation
+          const rawSpeed = (dataSize * 8) / (effectiveDuration / 1000); // bits per second
+          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with overhead compensation
           
           individualSpeeds.push(speed);
           successfulTests++;
           
           console.log(`Upload test ${i + 1}: ${size}MB in ${duration}ms = ${speed.toFixed(2)} Mbps`);
+          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits × ${overheadCompensationFactor}) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
         }
         
         // Small delay between tests
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         
       } catch (error) {
         console.error(`Upload test ${i} failed:`, error);

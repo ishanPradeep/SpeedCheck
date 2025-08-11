@@ -43,38 +43,36 @@ export async function POST(request: NextRequest) {
         pattern[i] = Math.floor(Math.random() * 256);
       }
       
-      // Fill the data array with the pattern (much faster than random generation)
+      // Fill the data array with the pattern
       for (let i = 0; i < dataSize; i++) {
         data[i] = pattern[i % pattern.length];
       }
       
       const dataEndTime = performance.now();
       console.log(`✅ [${requestId}] Data generation completed in ${(dataEndTime - dataStartTime).toFixed(2)}ms`);
-      console.log(`📊 [${requestId}] Generated data size: ${data.length} bytes`);
       
-      // Return the data immediately - the client will measure the download time
-      console.log(`📤 [${requestId}] Sending response...`);
-      const responseStartTime = performance.now();
+      // Librespeed-style headers
+      const headers = {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': dataSize.toString(),
+        'Content-Description': 'File Transfer',
+        'Content-Disposition': 'attachment; filename=random.dat',
+        'Content-Transfer-Encoding': 'binary',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0',
+        'Cache-Control': 'post-check=0, pre-check=0',
+        'Pragma': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Speed-Test': 'true',
+        'X-Transfer-Size': dataSize.toString(),
+        'X-Request-Id': requestId,
+      };
       
-      const response = new Response(data, {
+      console.log(`📤 [${requestId}] Sending ${dataSize} bytes with librespeed-style headers`);
+      
+      return new Response(data, {
         status: 200,
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': dataSize.toString(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Speed-Test': 'true',
-          'X-Transfer-Size': dataSize.toString(),
-          'X-Test-Type': 'download',
-          'X-Server-Timestamp': Date.now().toString(),
-          'X-Request-Id': requestId,
-        },
+        headers: headers,
       });
-      
-      const responseEndTime = performance.now();
-      console.log(`✅ [${requestId}] Response sent in ${(responseEndTime - responseStartTime).toFixed(2)}ms`);
-      console.log(`📊 [${requestId}] Response headers:`, Object.fromEntries(response.headers.entries()));
-      
-      return response;
       
     } else if (contentType?.includes('application/octet-stream')) {
       // Upload test - like Speedtest.net
