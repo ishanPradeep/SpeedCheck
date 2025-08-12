@@ -192,11 +192,11 @@ export default function SEO({
       <link rel="preconnect" href="https://www.google.com" />
       <link rel="preconnect" href="https://www.cloudflare.com" />
       
-      {/* DNS Prefetch for performance */}
-      <link rel="dns-prefetch" href="//www.google.com" />
-      <link rel="dns-prefetch" href="//www.cloudflare.com" />
-      <link rel="dns-prefetch" href="//www.amazon.com" />
-      <link rel="dns-prefetch" href="//www.microsoft.com" />
-    </Head>
-  );
-}
+             {/* DNS Prefetch for performance */}
+       <link rel="dns-prefetch" href="//www.google.com" />
+       <link rel="dns-prefetch" href="//www.cloudflare.com" />
+       <link rel="dns-prefetch" href="//www.amazon.com" />
+       <link rel="dns-prefetch" href="//www.microsoft.com" />
+     </Head>
+   );
+ }

@@ -154,6 +154,8 @@ NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
 1. Go to project dashboard
 2. Click "Analytics" tab
 3. Enable Web Analytics
+4. The Analytics component is already integrated in your app layout
+5. Analytics will automatically start tracking page views and user interactions
 
 ### 6.2 Configure Caching
 Vercel automatically handles caching, but you can optimize:
@@ -198,7 +200,7 @@ Vercel automatically handles caching, but you can optimize:
 - [ ] Speed test functionality is working
 - [ ] Mobile responsiveness is good
 - [ ] Core Web Vitals are passing
-- [ ] Analytics are tracking (if enabled)
+- [ ] Vercel Analytics are tracking (automatically enabled)
 
 ## Performance Tips
 
