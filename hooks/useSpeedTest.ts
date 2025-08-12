@@ -327,55 +327,37 @@ export function useSpeedTest() {
     const measurements: number[] = [];
     const countPing = config.test.pingCount;
     
-    console.log('🚀 Starting ping test (librespeed-style)...');
+    console.log('🚀 Starting ping test (simple network measurement)...');
     console.log(`📊 Ping count: ${countPing}`);
     
-    // Take multiple ping measurements to our own API for accuracy
+    // Take multiple ping measurements using simple network round-trip time
     for (let i = 0; i < countPing; i++) {
       const startTime = performance.now();
       
       try {
+        // Use HEAD request for minimal data transfer
         const response = await fetch('/api/ping', { 
-          method: 'GET', 
+          method: 'HEAD', 
           cache: 'no-cache',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           },
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: AbortSignal.timeout(5000) // 5 second timeout
         });
       
         if (response.ok) {
           const endTime = performance.now();
-          let pingTime = endTime - startTime;
+          const pingTime = endTime - startTime;
           
-          // Try to use Performance API for more accurate timing (like librespeed)
-          try {
-            const entries = performance.getEntries();
-            const lastEntry = entries[entries.length - 1];
-            if (lastEntry && lastEntry.entryType === 'resource') {
-              const resourceEntry = lastEntry as PerformanceResourceTiming;
-              if (resourceEntry.responseStart && resourceEntry.requestStart) {
-                const perfPing = resourceEntry.responseStart - resourceEntry.requestStart;
-                if (perfPing > 0 && perfPing < pingTime) {
-                  pingTime = perfPing;
-                  console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms (Performance API)`);
-                } else {
-                  console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms (fallback)`);
-                }
-              } else {
-                console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
-              }
-            } else {
-              console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
-            }
-          } catch (e) {
-            console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms (Performance API not available)`);
+          console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
+          
+          // Only accept reasonable ping values (1ms to 1000ms)
+          if (pingTime >= 1 && pingTime <= 1000) {
+            measurements.push(pingTime);
+          } else {
+            console.warn(`📊 Ping test ${i + 1}: Skipping outlier value ${pingTime.toFixed(2)}ms`);
           }
-          
-          // Librespeed-style minimum ping handling
-          if (pingTime < 1) pingTime = 1;
-          measurements.push(pingTime);
         } else {
           console.error(`Ping test ${i + 1} failed with status: ${response.status}`);
         }
@@ -385,7 +367,7 @@ export function useSpeedTest() {
       }
       
       // Small delay between measurements
-      if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 100));
+      if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 200));
     }
     
     if (measurements.length === 0) {
@@ -393,14 +375,14 @@ export function useSpeedTest() {
       throw new Error('Ping test failed - no successful measurements');
     }
     
-    // Librespeed-style ping calculation: use the minimum ping
+    // Use the minimum ping for accuracy
     const minPing = Math.min(...measurements);
     const avgPing = measurements.reduce((a, b) => a + b, 0) / measurements.length;
     
     console.log(`📊 Ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${measurements.length} measurements)`);
-    console.log(`📊 Using minimum ping: ${minPing.toFixed(2)}ms (librespeed-style)`);
+    console.log(`📊 Using minimum ping: ${minPing.toFixed(2)}ms`);
     
-    return Math.max(minPing, config.speedTest.minPing); // Minimum ping from config
+    return Math.max(minPing, 1); // Minimum 1ms ping
   };
 
   const measureJitter = async (): Promise<number> => {
@@ -412,7 +394,7 @@ export function useSpeedTest() {
     const measurements: number[] = [];
     const countPing = config.test.jitterCount;
     
-    console.log('🚀 Starting jitter test (librespeed-style)...');
+    console.log('🚀 Starting jitter test (simple network measurement)...');
     console.log(`📊 Jitter ping count: ${countPing}`);
     
     // Take multiple measurements for jitter calculation
@@ -420,40 +402,25 @@ export function useSpeedTest() {
       const startTime = performance.now();
       
       try {
+        // Use HEAD request for minimal data transfer
         const response = await fetch('/api/ping', { 
-          method: 'GET', 
+          method: 'HEAD', 
           cache: 'no-cache',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           },
-          signal: AbortSignal.timeout(2000) // 2 second timeout
+          signal: AbortSignal.timeout(3000) // 3 second timeout
         });
       
         if (response.ok) {
           const endTime = performance.now();
-          let pingTime = endTime - startTime;
+          const pingTime = endTime - startTime;
           
-          // Try to use Performance API for more accurate timing
-          try {
-            const entries = performance.getEntries();
-            const lastEntry = entries[entries.length - 1];
-            if (lastEntry && lastEntry.entryType === 'resource') {
-              const resourceEntry = lastEntry as PerformanceResourceTiming;
-              if (resourceEntry.responseStart && resourceEntry.requestStart) {
-                const perfPing = resourceEntry.responseStart - resourceEntry.requestStart;
-                if (perfPing > 0 && perfPing < pingTime) {
-                  pingTime = perfPing;
-                }
-              }
-            }
-          } catch (e) {
-            // Performance API not available, use fallback
+          // Only accept reasonable ping values (1ms to 1000ms)
+          if (pingTime >= 1 && pingTime <= 1000) {
+            measurements.push(pingTime);
           }
-          
-          // Librespeed-style minimum ping handling
-          if (pingTime < 1) pingTime = 1;
-          measurements.push(pingTime);
         } else {
           console.error(`Jitter test ${i + 1} failed with status: ${response.status}`);
         }
@@ -463,7 +430,7 @@ export function useSpeedTest() {
       }
       
       // Small delay between measurements
-      if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 50));
+      if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 100));
     }
     
     if (measurements.length === 0) {
@@ -471,26 +438,21 @@ export function useSpeedTest() {
       throw new Error('Jitter test failed - no successful measurements');
     }
     
-    // Librespeed-style jitter calculation: weighted average of jitter measurements
+    // Simple jitter calculation: average of ping variations
     let jitter = 0;
     let prevPing = measurements[0];
     
     for (let i = 1; i < measurements.length; i++) {
       const currentPing = measurements[i];
       const instJitter = Math.abs(currentPing - prevPing);
-      
-      if (i === 1) {
-        jitter = instJitter; // First jitter measurement
-      } else {
-        // Librespeed-style weighted average: spikes get more weight
-        jitter = instJitter > jitter ? jitter * 0.3 + instJitter * 0.7 : jitter * 0.8 + instJitter * 0.2;
-      }
-      
+      jitter += instJitter;
       prevPing = currentPing;
     }
     
-    console.log(`📊 Jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements, librespeed-style)`);
-    return Math.max(jitter, config.speedTest.minJitter); // Minimum jitter from config
+    jitter = jitter / (measurements.length - 1); // Average jitter
+    
+    console.log(`📊 Jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements)`);
+    return Math.max(jitter, 1); // Minimum 1ms jitter
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {

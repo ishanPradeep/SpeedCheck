@@ -29,14 +29,16 @@ export default function TestFixesPage() {
     addLog('🚀 Starting ping test...');
     
     try {
-      const measurements: number[] = [];
-      const countPing = 5; // Reduced for testing
+      // Test your own server first
+      addLog('📡 Testing your server ping...');
+      const ownMeasurements: number[] = [];
+      const countPing = 5;
       
       for (let i = 0; i < countPing; i++) {
         const startTime = performance.now();
         
         const response = await fetch('/api/ping', { 
-          method: 'GET', 
+          method: 'HEAD', 
           cache: 'no-cache',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -48,24 +50,47 @@ export default function TestFixesPage() {
         if (response.ok) {
           const endTime = performance.now();
           const pingTime = endTime - startTime;
-          measurements.push(pingTime);
-          addLog(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
+          if (pingTime >= 1 && pingTime <= 1000) {
+            ownMeasurements.push(pingTime);
+            addLog(`📊 Your server ping ${i + 1}: ${pingTime.toFixed(2)}ms`);
+          } else {
+            addLog(`⚠️ Your server ping ${i + 1}: Skipping outlier ${pingTime.toFixed(2)}ms`);
+          }
         } else {
-          addLog(`❌ Ping test ${i + 1} failed: ${response.status}`);
+          addLog(`❌ Your server ping ${i + 1} failed: ${response.status}`);
         }
         
-        if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 100));
+        if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 200));
       }
       
-      if (measurements.length > 0) {
-        const minPing = Math.min(...measurements);
-        const avgPing = measurements.reduce((a, b) => a + b, 0) / measurements.length;
+      if (ownMeasurements.length > 0) {
+        const minPing = Math.min(...ownMeasurements);
+        const avgPing = ownMeasurements.reduce((a, b) => a + b, 0) / ownMeasurements.length;
         
-        addLog(`✅ Ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms`);
+        addLog(`✅ Your server ping: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms`);
         setResults(prev => ({ ...prev, ping: minPing }));
-      } else {
-        addLog('❌ All ping tests failed');
       }
+      
+      // Test external servers for comparison
+      addLog('🌐 Testing external servers for comparison...');
+      const externalServers = [
+        'https://www.google.com',
+        'https://www.cloudflare.com',
+        'https://www.speedtest.net'
+      ];
+      
+      for (const server of externalServers) {
+        try {
+          const response = await fetch(`/api/external-ping?server=${encodeURIComponent(server)}`);
+          if (response.ok) {
+            const data = await response.json();
+            addLog(`🌐 ${server}: ${data.ping}ms`);
+          }
+        } catch (error) {
+          addLog(`❌ ${server}: Failed`);
+        }
+      }
+      
     } catch (error) {
       addLog(`❌ Ping test error: ${error}`);
     } finally {
@@ -186,7 +211,7 @@ export default function TestFixesPage() {
     <div className="container mx-auto p-6 max-w-4xl">
       <h1 className="text-3xl font-bold mb-6">Speed Test Fixes Verification</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <button
           onClick={testPing}
           disabled={loading}
@@ -207,6 +232,13 @@ export default function TestFixesPage() {
           className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded disabled:opacity-50"
         >
           Test Upload
+        </button>
+        <button
+          onClick={clearLogs}
+          disabled={loading}
+          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          Clear Logs
         </button>
       </div>
 
@@ -238,14 +270,8 @@ export default function TestFixesPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4">
         <h2 className="text-xl font-semibold">Test Logs:</h2>
-        <button
-          onClick={clearLogs}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
-        >
-          Clear Logs
-        </button>
       </div>
 
       <div className="bg-black text-green-400 p-4 rounded font-mono text-sm h-96 overflow-y-auto">
