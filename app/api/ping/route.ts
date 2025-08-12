@@ -1,18 +1,13 @@
 import { NextRequest } from 'next/server';
 
 export async function HEAD(request: NextRequest) {
-  const startTime = performance.now();
-  
-  // Real ping measurement - return immediately to measure actual network round-trip time
-  const responseTime = performance.now() - startTime;
-  
+  // Minimal response for ping measurement - return immediately
   return new Response(null, {
     status: 200,
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
-      'X-Response-Time': responseTime.toString(),
       'X-Server-Location': 'Global Network',
       'X-Server-Provider': process.env.NEXT_PUBLIC_APP_NAME || 'SpeedCheck Pro',
       'X-Test-Method': 'real-network-ping',
@@ -22,14 +17,9 @@ export async function HEAD(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const startTime = performance.now();
-  
-  // Real ping measurement - return immediately to measure actual network round-trip time
-  const responseTime = performance.now() - startTime;
-  
+  // Minimal response for ping measurement - return immediately
   return new Response(JSON.stringify({ 
     timestamp: Date.now(),
-    responseTime: Math.round(responseTime),
     server: process.env.NEXT_PUBLIC_APP_NAME || 'SpeedCheck Pro',
     location: 'Global Network',
     uptime: process.uptime(),
@@ -40,9 +30,6 @@ export async function GET(request: NextRequest) {
       speedtestNetCompatible: true,
     },
     testMethod: 'speedtest-net-style',
-    pingQuality: responseTime <= 20 ? 'Excellent' : 
-                 responseTime <= 50 ? 'Good' : 
-                 responseTime <= 100 ? 'Fair' : 'Poor',
   }), {
     status: 200,
     headers: {
@@ -50,7 +37,6 @@ export async function GET(request: NextRequest) {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
-      'X-Response-Time': responseTime.toString(),
     },
   });
 }

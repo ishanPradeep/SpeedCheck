@@ -571,18 +571,18 @@ export function useSpeedTest() {
             console.warn(`⚠️  Size mismatch detected! Expected: ${expectedSize}, Got: ${dataSize}`);
           }
           
-          // Apply grace time logic like librespeed
-          const effectiveDuration = Math.max(totalDuration - (graceTime * 1000), 50); // Minimum 50ms for more accuracy
+          // Use actual data transfer time for more accurate speed calculation
+          const effectiveDuration = Math.max(dataReadDuration, 50); // Use data read time, minimum 50ms
           
-          // More accurate speed calculation without excessive compensation
+          // Accurate speed calculation based on actual transfer time
           const rawSpeed = (dataSize * 8) / (effectiveDuration / 1000); // bits per second
-          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with minimal overhead compensation
+          const speed = rawSpeed / 1000000; // Mbps (no overhead compensation for accuracy)
           
           individualSpeeds.push(speed);
           successfulTests++;
           
           console.log(`✅ Download test ${i + 1}: ${size}MB in ${totalDuration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
-          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits × ${overheadCompensationFactor}) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
+          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
         }
         
         // Small delay between tests
@@ -670,18 +670,18 @@ export function useSpeedTest() {
           
           console.log(`📊 Upload test ${i + 1}: ${size}MB in ${duration.toFixed(2)}ms`);
           
-          // Apply grace time logic like librespeed
-          const effectiveDuration = Math.max(duration - (graceTime * 1000), 50); // Minimum 50ms for more accuracy
+          // Use actual transfer time for accurate speed calculation
+          const effectiveDuration = Math.max(duration, 50); // Use actual duration, minimum 50ms
           
-          // More accurate speed calculation without excessive compensation
+          // Accurate speed calculation based on actual transfer time
           const rawSpeed = (dataSize * 8) / (effectiveDuration / 1000); // bits per second
-          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with minimal overhead compensation
+          const speed = rawSpeed / 1000000; // Mbps (no overhead compensation for accuracy)
           
           individualSpeeds.push(speed);
           successfulTests++;
           
           console.log(`✅ Upload test ${i + 1}: ${size}MB in ${duration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
-          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits × ${overheadCompensationFactor}) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
+          console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
         } else {
           console.error(`Upload test ${i + 1} failed with status: ${response.status}`);
         }
@@ -714,14 +714,14 @@ export function useSpeedTest() {
 
   const measureNetworkQuality = (downloadSpeed: number, uploadSpeed: number, ping: number, jitter: number) => {
     // Calculate stability based on jitter (lower jitter = higher stability)
-    const stability = Math.max(100 - (jitter * 3), 0);
+    const stability = Math.max(100 - (jitter * 2), 0);
     
     // Calculate consistency based on upload/download ratio
     const speedRatio = uploadSpeed / downloadSpeed;
     const consistency = Math.min(speedRatio * 100, 100);
     
     // Calculate reliability based on ping (lower ping = higher reliability)
-    const reliability = Math.max(100 - (ping / 2), 0);
+    const reliability = Math.max(100 - (ping / 5), 0);
     
     setNetworkQuality({
       stability: Math.round(stability),
@@ -733,11 +733,13 @@ export function useSpeedTest() {
   const calculateGrade = (download: number, upload: number, ping: number): string => {
     const avgSpeed = (download + upload) / 2;
     
-    if (avgSpeed >= 100 && ping <= 20) return 'A+';
-    if (avgSpeed >= 50 && ping <= 50) return 'A';
-    if (avgSpeed >= 25 && ping <= 100) return 'B';
-    if (avgSpeed >= 10 && ping <= 150) return 'C';
-    if (avgSpeed >= 5 && ping <= 200) return 'D';
+    // More realistic grading based on typical internet speeds
+    if (avgSpeed >= 100 && ping <= 50) return 'A+';
+    if (avgSpeed >= 50 && ping <= 100) return 'A';
+    if (avgSpeed >= 25 && ping <= 150) return 'B';
+    if (avgSpeed >= 10 && ping <= 200) return 'C';
+    if (avgSpeed >= 5 && ping <= 300) return 'D';
+    if (avgSpeed >= 1 && ping <= 500) return 'E';
     return 'F';
   };
 
