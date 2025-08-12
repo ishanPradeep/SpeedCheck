@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { isStaticGeneration } from '@/lib/utils';
 
 interface TestResults {
   ping?: number;
@@ -20,6 +21,12 @@ export default function TestRealSpeedPage() {
   };
 
   const testPing = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run ping test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Starting ping test...');
     
@@ -50,6 +57,12 @@ export default function TestRealSpeedPage() {
   };
 
   const testDownload = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run download test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Starting download test...');
     
@@ -104,6 +117,12 @@ export default function TestRealSpeedPage() {
   };
 
   const testUpload = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run upload test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Starting upload test...');
     
@@ -161,6 +180,12 @@ export default function TestRealSpeedPage() {
   };
 
   const runFullTest = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run full test during static generation');
+      return;
+    }
+    
     setResults(null);
     setLogs([]);
     addLog('Starting full speed test...');

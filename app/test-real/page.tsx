@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { isStaticGeneration } from '@/lib/utils';
 
 interface TestResult {
   ping?: { time: number; data: any };
@@ -28,6 +29,12 @@ export default function TestRealPage() {
   };
 
   const testPing = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run ping test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Testing ping (real network latency)...');
 
@@ -63,6 +70,12 @@ export default function TestRealPage() {
   };
 
   const testDownload = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run download test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Testing download (real network transfer)...');
 
@@ -107,6 +120,12 @@ export default function TestRealPage() {
   };
 
   const testUpload = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run upload test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Testing upload (real network transfer)...');
 
@@ -156,6 +175,12 @@ export default function TestRealPage() {
   };
 
   const testAll = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run comprehensive test during static generation');
+      return;
+    }
+    
     setLoading(true);
     addLog('Starting comprehensive speed test...');
     addLog('This will test ping, download, and upload speeds.');

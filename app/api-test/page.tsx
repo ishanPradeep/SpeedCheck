@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { isStaticGeneration } from '@/lib/utils';
 
 interface TestResult {
   testType: string;
@@ -32,6 +33,12 @@ export default function ApiTestPage() {
   };
 
   const testApiStatus = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run API test during static generation');
+      return;
+    }
+    
     addLog('🔍 Testing API status...');
     try {
       const response = await fetch('/api/speed-test', { method: 'GET' });
@@ -46,6 +53,12 @@ export default function ApiTestPage() {
   };
 
   const testDownload = async (sizeMB: number) => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run download test during static generation');
+      return;
+    }
+    
     const sizeBytes = sizeMB * 1024 * 1024;
     addLog(`📥 Testing download: ${sizeMB}MB (${sizeBytes} bytes)`);
     
@@ -115,6 +128,12 @@ export default function ApiTestPage() {
   };
 
   const testUpload = async (sizeMB: number) => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run upload test during static generation');
+      return;
+    }
+    
     const sizeBytes = sizeMB * 1024 * 1024;
     addLog(`📤 Testing upload: ${sizeMB}MB (${sizeBytes} bytes)`);
     
@@ -184,6 +203,12 @@ export default function ApiTestPage() {
   };
 
   const runFullTest = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot run full test during static generation');
+      return;
+    }
+    
     setIsRunning(true);
     clearLogs();
     

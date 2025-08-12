@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import config from '@/config/speed-test.config';
 
 export async function POST(request: NextRequest) {
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -26,8 +27,8 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      // Validate size parameter
-      const dataSize = Math.min(Math.max(size || 1048576, 1024), 50 * 1024 * 1024); // 1KB to 50MB
+      // Validate size parameter using config
+      const dataSize = Math.min(Math.max(size || config.speedTest.minFileSize, 1024), config.speedTest.maxFileSize);
       console.log(`📏 [${requestId}] Requested size: ${size} bytes`);
       console.log(`📏 [${requestId}] Validated size: ${dataSize} bytes (${(dataSize / 1024 / 1024).toFixed(2)} MB)`);
       
@@ -58,8 +59,7 @@ export async function POST(request: NextRequest) {
         'Content-Description': 'File Transfer',
         'Content-Disposition': 'attachment; filename=random.dat',
         'Content-Transfer-Encoding': 'binary',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0',
-        'Cache-Control': 'post-check=0, pre-check=0',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0, post-check=0, pre-check=0',
         'Pragma': 'no-cache',
         'Connection': 'keep-alive',
         'X-Speed-Test': 'true',
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       const duration = endTime - startTime;
       
       // Calculate actual upload speed based on real transfer time
-      const actualSpeed = (totalSize * 8) / (duration * 1000); // Mbps - Fixed calculation
+      const actualSpeed = (totalSize * 8) / (duration / 1000); // Mbps - Fixed calculation (was missing division)
       
       console.log(`📈 [${requestId}] Upload speed calculation:`);
       console.log(`   - Data size: ${totalSize} bytes`);

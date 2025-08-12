@@ -74,8 +74,8 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
     const totalUpload = history.reduce((sum, test) => sum + test.uploadSpeed, 0);
     const totalPing = history.reduce((sum, test) => sum + test.ping, 0);
     return {
-      avgDownload: (totalDownload / history.length).toFixed(2),
-      avgUpload: (totalUpload / history.length).toFixed(2),
+              avgDownload: (totalDownload / history.length).toFixed(1),
+        avgUpload: (totalUpload / history.length).toFixed(1),
       avgPing: Math.round(totalPing / history.length)
     };
   };
@@ -267,7 +267,7 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">
-                  {bestTest.downloadSpeed.toFixed(2)}
+                                      {bestTest.downloadSpeed.toFixed(1)}
                 </div>
                 <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Download Mbps
@@ -275,7 +275,7 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">
-                  {bestTest.uploadSpeed.toFixed(2)}
+                                      {bestTest.uploadSpeed.toFixed(1)}
                 </div>
                 <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Upload Mbps
@@ -283,7 +283,7 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-400">
-                  {bestTest.ping}
+                  {bestTest.ping.toFixed(1)}
                 </div>
                 <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Ping ms
@@ -315,7 +315,7 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
                     <Download className="h-5 w-5 text-green-400" />
                     <div>
                       <div className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {test.downloadSpeed.toFixed(2)}
+                        {test.downloadSpeed.toFixed(1)}
                       </div>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         Mbps
@@ -329,7 +329,7 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
                     <Upload className="h-5 w-5 text-blue-400" />
                     <div>
                       <div className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {test.uploadSpeed.toFixed(2)}
+                        {test.uploadSpeed.toFixed(1)}
                       </div>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         Mbps
@@ -343,7 +343,7 @@ export default function TestHistory({ history, isDarkMode = true, onRefresh }: T
                     <Timer className="h-5 w-5 text-yellow-400" />
                     <div>
                       <div className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {test.ping}
+                        {test.ping.toFixed(1)}
                       </div>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         ms

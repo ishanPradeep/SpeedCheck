@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import config from '@/lib/config';
+import { isBrowser, isStaticGeneration } from '@/lib/utils';
 
 interface TestResult {
   id: string;
@@ -57,7 +59,7 @@ export function useSpeedTest() {
   // Load history and user info on mount
   useEffect(() => {
     // Only run in the browser, not during SSR or static generation
-    if (typeof window !== 'undefined') {
+    if (isBrowser()) {
       console.log('Component mounted, loading history and user info...');
       loadHistory();
       detectUserInfo();
@@ -66,6 +68,11 @@ export function useSpeedTest() {
 
   // Add a separate effect to handle history updates
   useEffect(() => {
+    // Only run in the browser, not during SSR or static generation
+    if (isStaticGeneration()) {
+      return;
+    }
+    
     // This will run whenever the component mounts or when we need to refresh history
     const handleStorageChange = () => {
       loadHistory();
@@ -81,6 +88,11 @@ export function useSpeedTest() {
 
   // Debug effect to log history changes
   useEffect(() => {
+    // Only run in the browser, not during SSR or static generation
+    if (isStaticGeneration()) {
+      return;
+    }
+    
     console.log(`History state updated: ${history.length} items`);
     if (history.length > 0) {
       console.log('First history item:', history[0]);
@@ -88,7 +100,7 @@ export function useSpeedTest() {
   }, [history]);
 
   const loadHistory = useCallback(() => {
-    if (typeof window !== 'undefined') {
+    if (isBrowser()) {
       try {
         const saved = localStorage.getItem('speedtest-history');
         if (saved) {
@@ -139,7 +151,7 @@ export function useSpeedTest() {
       } catch (error) {
         console.error('Failed to load history:', error);
         // Clear corrupted data
-        if (typeof window !== 'undefined') {
+          if (isBrowser()) {
           localStorage.removeItem('speedtest-history');
         }
         setHistory([]);
@@ -150,7 +162,7 @@ export function useSpeedTest() {
 
 
   const saveToHistory = useCallback((result: TestResult) => {
-    if (typeof window !== 'undefined') {
+    if (isBrowser()) {
       try {
         // Ensure the result has all required fields
         const validResult: TestResult = {
@@ -165,7 +177,7 @@ export function useSpeedTest() {
           grade: result.grade || 'F'
         };
 
-  const historyLimit = Number(process.env.NEXT_PUBLIC_HISTORY_LIMIT) || 50;
+  const historyLimit = config.app.historyLimit;
   const newHistory = [validResult, ...history].slice(0, historyLimit); // Configurable history limit
         setHistory(newHistory);
         
@@ -176,7 +188,7 @@ export function useSpeedTest() {
         console.error('Failed to save to history:', error);
         // Try to save just the current result if the full history fails
         try {
-          if (typeof window !== 'undefined') {
+            if (isBrowser()) {
             localStorage.setItem('speedtest-history', JSON.stringify([result]));
           }
           console.log('Saved single test result as fallback');
@@ -188,6 +200,11 @@ export function useSpeedTest() {
   }, [history]);
 
   const detectUserInfo = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      return;
+    }
+    
     try {
       let info: UserInfo = {
         ip: 'Detecting...',
@@ -197,7 +214,6 @@ export function useSpeedTest() {
         server: 'Auto Select',
       };
 
-      try {
         // Try multiple IP detection services for better reliability
         const services = [
           'https://ipapi.co/json/',
@@ -212,7 +228,8 @@ export function useSpeedTest() {
           try {
             const response = await fetch(service, { 
               method: 'GET',
-              headers: { 'Accept': 'application/json' }
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(5000) // 5 second timeout per service
             });
             
             if (response.ok) {
@@ -276,431 +293,39 @@ export function useSpeedTest() {
           }
         }
 
-        // Fallback for global users if all services fail
+      // Simple, honest fallback if all services fail
         if (info.ip === 'Unknown' || info.ip === 'Detecting...') {
-          // Global ISP and location fallbacks
-          const globalISPs = [
-            // North America
-            'Comcast Corporation', 'AT&T Internet Services', 'Verizon Communications',
-            'Charter Communications', 'Cox Communications', 'CenturyLink',
-            'Frontier Communications', 'Mediacom', 'Windstream',
-            // Canada
-            'Rogers Communications', 'Bell Canada', 'Telus Corporation',
-            'Shaw Communications', 'Cogeco', 'Videotron',
-            // Europe
-            'British Telecommunications', 'Sky Broadband', 'Virgin Media',
-            'Deutsche Telekom', 'Vodafone Germany', 'O2 Germany',
-            'Orange S.A.', 'SFR', 'Free Mobile', 'Bouygues Telecom',
-            'Telefónica', 'Vodafone Spain', 'Orange Spain',
-            'TIM', 'Vodafone Italy', 'Wind Tre', 'Fastweb',
-            'KPN', 'Ziggo', 'T-Mobile Netherlands',
-            'Swisscom', 'Sunrise', 'Salt Mobile',
-            'Telenor', 'Telia', 'Com Hem',
-            'Proximus', 'Telenet', 'Orange Belgium',
-            'Magyar Telekom', 'Vodafone Hungary', 'Digi',
-            'Český Telecom', 'O2 Czech Republic', 'T-Mobile Czech',
-            'Telekom Austria', 'A1 Austria', 'Drei',
-            // Asia Pacific
-            'NTT Communications', 'KDDI', 'SoftBank',
-            'China Telecom', 'China Unicom', 'China Mobile',
-            'SK Telecom', 'KT Corporation', 'LG Uplus',
-            'Singtel', 'StarHub', 'M1 Limited',
-            'Maxis', 'Digi', 'Celcom',
-            'PLDT', 'Globe Telecom', 'Smart Communications',
-            'True Corporation', 'AIS', 'DTAC',
-            'Viettel', 'VNPT', 'FPT Telecom',
-            'Indosat', 'Telkomsel', 'XL Axiata',
-            'Reliance Jio', 'Bharti Airtel', 'Vodafone Idea',
-            'Dialog Axiata PLC', 'Sri Lanka Telecom', 'Mobitel (Pvt) Ltd',
-            'Hutchison Telecommunications Lanka (Pvt) Ltd', 'Airtel Lanka (Pvt) Ltd',
-            // Australia & New Zealand
-            'Telstra Corporation', 'Optus', 'TPG Telecom',
-            'Spark New Zealand', 'Vodafone New Zealand', '2degrees',
-            // Middle East
-            'Etisalat', 'Du', 'STC',
-            'Mobily', 'Zain Saudi', 'Ooredoo',
-            'Batelco', 'Viva Bahrain', 'Zain Bahrain',
-            'Ooredoo Qatar', 'Vodafone Qatar',
-            'Etisalat Kuwait', 'Zain Kuwait', 'Ooredoo Kuwait',
-            'Oman Telecommunications', 'Ooredoo Oman',
-            // Africa
-            'Vodacom', 'MTN', 'Cell C',
-            'Telkom SA', 'Rain', 'Liquid Telecom',
-            'MTN Nigeria', 'Airtel Nigeria', 'Glo Mobile',
-            '9mobile', 'Spectranet', 'Smile Communications',
-            'Safaricom', 'Airtel Kenya', 'Telkom Kenya',
-            'MTN Ghana', 'Vodafone Ghana', 'AirtelTigo',
-            'MTN Uganda', 'Airtel Uganda', 'Uganda Telecom',
-            'MTN Tanzania', 'Airtel Tanzania', 'Vodacom Tanzania',
-            'MTN Rwanda', 'Airtel Rwanda',
-            'MTN Zambia', 'Airtel Zambia', 'Zamtel',
-            'MTN Zimbabwe', 'Econet Wireless', 'NetOne',
-            'MTN Cameroon', 'Orange Cameroon', 'Camtel',
-            'MTN Côte d\'Ivoire', 'Orange Côte d\'Ivoire', 'Moov',
-            'MTN Senegal', 'Orange Senegal', 'Free Senegal',
-            'MTN Mali', 'Orange Mali', 'Malitel',
-            'MTN Burkina Faso', 'Orange Burkina Faso', 'Telmob',
-            'MTN Niger', 'Orange Niger', 'Moov Niger',
-            'MTN Chad', 'Airtel Chad', 'Salam',
-            'MTN Central African Republic', 'Orange CAR', 'Telecel CAR',
-            'MTN Congo', 'Airtel Congo', 'Celtel Congo',
-            'MTN Gabon', 'Airtel Gabon', 'Libertis',
-            'MTN Equatorial Guinea', 'Orange EG', 'GETESA',
-            'MTN São Tomé and Príncipe', 'CST', 'Unitel STP',
-            'MTN Guinea-Bissau', 'Orange Guinea-Bissau', 'Areeba',
-            'MTN Guinea', 'Orange Guinea', 'Intercel',
-            'MTN Sierra Leone', 'Airtel Sierra Leone', 'Orange Sierra Leone',
-            'MTN Liberia', 'Lonestar Cell', 'Orange Liberia',
-            'MTN Togo', 'Moov Togo', 'Togocel',
-            'MTN Benin', 'Moov Benin', 'MTN Benin',
-            'MTN Gambia', 'Gamcel', 'QCell',
-            // South America
-            'Vivo', 'Claro', 'Oi',
-            'Telefónica Argentina', 'Claro Argentina', 'Personal',
-            'Entel Chile', 'Movistar Chile', 'Claro Chile',
-            'Movistar Colombia', 'Claro Colombia', 'Tigo Colombia',
-            'Movistar Ecuador', 'Claro Ecuador', 'CNT',
-            'Movistar Perú', 'Claro Perú', 'Entel Perú',
-            'Movistar Venezuela', 'Digitel', 'Cantv',
-            'Movistar Bolivia', 'Entel Bolivia', 'Tigo Bolivia',
-            'Antel', 'Movistar Uruguay', 'Claro Uruguay',
-            'Copaco', 'Personal Paraguay', 'Claro Paraguay',
-            'Movistar Paraguay', 'Tigo Paraguay',
-            'Movistar Panamá', 'Claro Panamá', 'Cable & Wireless',
-            'Movistar Costa Rica', 'Claro Costa Rica', 'Kolbi',
-            'Movistar Nicaragua', 'Claro Nicaragua', 'Tigo Nicaragua',
-            'Movistar Honduras', 'Claro Honduras', 'Tigo Honduras',
-            'Movistar El Salvador', 'Claro El Salvador', 'Tigo El Salvador',
-            'Movistar Guatemala', 'Claro Guatemala', 'Tigo Guatemala',
-            'Movistar México', 'Telcel', 'AT&T México',
-            'Movistar Cuba', 'Etecsa',
-            'Movistar República Dominicana', 'Claro República Dominicana', 'Altice',
-            'Movistar Haití', 'Digicel Haití', 'Natcom',
-            'Movistar Jamaica', 'Digicel Jamaica', 'Flow Jamaica',
-            'Movistar Trinidad y Tobago', 'Digicel Trinidad y Tobago', 'bmobile',
-            'Movistar Barbados', 'Digicel Barbados', 'Flow Barbados',
-            'Movistar Bahamas', 'Digicel Bahamas', 'BTC Bahamas',
-            'Movistar Guyana', 'Digicel Guyana', 'GT&T',
-            'Movistar Suriname', 'Digicel Suriname', 'Telesur',
-            'Movistar French Guiana', 'Orange Guyane', 'Digicel Guyane'
-          ];
-          
-          const globalCities = [
-            // North America - USA
-            'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
-            'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose',
-            'Austin', 'Jacksonville', 'Fort Worth', 'Columbus', 'Charlotte',
-            'San Francisco', 'Indianapolis', 'Seattle', 'Denver', 'Washington',
-            'Boston', 'El Paso', 'Nashville', 'Detroit', 'Oklahoma City',
-            'Portland', 'Las Vegas', 'Memphis', 'Louisville', 'Baltimore',
-            // Canada
-            'Toronto', 'Montreal', 'Vancouver', 'Calgary', 'Edmonton',
-            'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Kitchener',
-            'London', 'Victoria', 'Halifax', 'St. John\'s', 'Saskatoon',
-            // Europe - UK
-            'London', 'Manchester', 'Birmingham', 'Leeds', 'Liverpool',
-            'Sheffield', 'Edinburgh', 'Glasgow', 'Bristol', 'Cardiff',
-            'Coventry', 'Leicester', 'Bradford', 'Stoke-on-Trent', 'Wolverhampton',
-            // Germany
-            'Berlin', 'Munich', 'Hamburg', 'Cologne', 'Frankfurt',
-            'Stuttgart', 'Düsseldorf', 'Dortmund', 'Essen', 'Leipzig',
-            'Bremen', 'Dresden', 'Hannover', 'Nuremberg', 'Duisburg',
-            // France
-            'Paris', 'Marseille', 'Lyon', 'Toulouse', 'Nice',
-            'Nantes', 'Strasbourg', 'Montpellier', 'Bordeaux', 'Lille',
-            'Rennes', 'Reims', 'Saint-Étienne', 'Toulon', 'Le Havre',
-            // Spain
-            'Madrid', 'Barcelona', 'Valencia', 'Seville', 'Zaragoza',
-            'Málaga', 'Murcia', 'Palma', 'Las Palmas', 'Bilbao',
-            'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón',
-            // Italy
-            'Rome', 'Milan', 'Naples', 'Turin', 'Palermo',
-            'Genoa', 'Bologna', 'Florence', 'Bari', 'Catania',
-            'Venice', 'Verona', 'Messina', 'Padua', 'Trieste',
-            // Netherlands
-            'Amsterdam', 'Rotterdam', 'The Hague', 'Utrecht', 'Eindhoven',
-            'Tilburg', 'Groningen', 'Almere', 'Breda', 'Nijmegen',
-            // Belgium
-            'Brussels', 'Antwerp', 'Ghent', 'Charleroi', 'Liège',
-            'Bruges', 'Namur', 'Leuven', 'Mons', 'Aalst',
-            // Switzerland
-            'Zurich', 'Geneva', 'Basel', 'Bern', 'Lausanne',
-            'Winterthur', 'St. Gallen', 'Lucerne', 'Lugano', 'Biel',
-            // Sweden
-            'Stockholm', 'Gothenburg', 'Malmö', 'Uppsala', 'Västerås',
-            'Örebro', 'Linköping', 'Helsingborg', 'Jönköping', 'Norrköping',
-            // Norway
-            'Oslo', 'Bergen', 'Trondheim', 'Stavanger', 'Drammen',
-            'Fredrikstad', 'Kristiansand', 'Tromsø', 'Bodø', 'Ålesund',
-            // Denmark
-            'Copenhagen', 'Aarhus', 'Odense', 'Aalborg', 'Esbjerg',
-            'Randers', 'Kolding', 'Horsens', 'Vejle', 'Herning',
-            // Finland
-            'Helsinki', 'Espoo', 'Tampere', 'Vantaa', 'Oulu',
-            'Turku', 'Jyväskylä', 'Lahti', 'Kuopio', 'Pori',
-            // Poland
-            'Warsaw', 'Kraków', 'Łódź', 'Wrocław', 'Poznań',
-            'Gdańsk', 'Szczecin', 'Bydgoszcz', 'Lublin', 'Katowice',
-            // Czech Republic
-            'Prague', 'Brno', 'Ostrava', 'Plzeň', 'Liberec',
-            'Olomouc', 'Ústí nad Labem', 'České Budějovice', 'Hradec Králové', 'Pardubice',
-            // Hungary
-            'Budapest', 'Debrecen', 'Szeged', 'Miskolc', 'Pécs',
-            'Győr', 'Nyíregyháza', 'Kecskemét', 'Székesfehérvár', 'Szombathely',
-            // Austria
-            'Vienna', 'Graz', 'Linz', 'Salzburg', 'Innsbruck',
-            'Klagenfurt', 'Villach', 'Wels', 'Sankt Pölten', 'Dornbirn',
-            // Asia Pacific - Japan
-            'Tokyo', 'Osaka', 'Nagoya', 'Sapporo', 'Fukuoka',
-            'Kobe', 'Kyoto', 'Kawasaki', 'Saitama', 'Hiroshima',
-            'Sendai', 'Chiba', 'Kitakyushu', 'Sakai', 'Niigata',
-            // China
-            'Beijing', 'Shanghai', 'Guangzhou', 'Shenzhen', 'Chengdu',
-            'Tianjin', 'Chongqing', 'Nanjing', 'Wuhan', 'Xi\'an',
-            'Hangzhou', 'Dongguan', 'Foshan', 'Jinan', 'Qingdao',
-            // South Korea
-            'Seoul', 'Busan', 'Incheon', 'Daegu', 'Daejeon',
-            'Gwangju', 'Suwon', 'Ulsan', 'Changwon', 'Seongnam',
-            // Singapore
-            'Singapore', 'Jurong West', 'Woodlands', 'Tampines', 'Sengkang',
-            'Hougang', 'Yishun', 'Choa Chu Kang', 'Punggol', 'Bukit Batok',
-            // Malaysia
-            'Kuala Lumpur', 'George Town', 'Ipoh', 'Shah Alam', 'Petaling Jaya',
-            'Johor Bahru', 'Malacca City', 'Alor Setar', 'Miri', 'Kuching',
-            // Philippines
-            'Manila', 'Quezon City', 'Davao City', 'Caloocan', 'Cebu City',
-            'Zamboanga City', 'Antipolo', 'Pasig', 'Taguig', 'Valenzuela',
-            // Thailand
-            'Bangkok', 'Chiang Mai', 'Pattaya', 'Hat Yai', 'Nakhon Ratchasima',
-            'Udon Thani', 'Khon Kaen', 'Nakhon Si Thammarat', 'Chiang Rai', 'Songkhla',
-            // Vietnam
-            'Ho Chi Minh City', 'Hanoi', 'Da Nang', 'Hai Phong', 'Can Tho',
-            'Bien Hoa', 'Hue', 'Nha Trang', 'Buon Ma Thuot', 'Vung Tau',
-            // Indonesia
-            'Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang',
-            'Palembang', 'Makassar', 'Tangerang', 'Depok', 'Bekasi',
-            // India
-            'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-            'Kolkata', 'Pune', 'Ahmedabad', 'Surat', 'Jaipur',
-            'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane',
-            // Sri Lanka
-            'Colombo', 'Kandy', 'Galle', 'Jaffna', 'Matara',
-            'Anuradhapura', 'Kurunegala', 'Ratnapura', 'Badulla', 'Polonnaruwa',
-            // Australia & New Zealand
-            'Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide',
-            'Gold Coast', 'Newcastle', 'Canberra', 'Sunshine Coast', 'Wollongong',
-            'Auckland', 'Wellington', 'Christchurch', 'Hamilton', 'Tauranga',
-            'Napier-Hastings', 'Dunedin', 'Palmerston North', 'Nelson', 'Rotorua',
-            // Middle East
-            'Dubai', 'Abu Dhabi', 'Sharjah', 'Al Ain', 'Ajman',
-            'Riyadh', 'Jeddah', 'Mecca', 'Medina', 'Dammam',
-            'Kuwait City', 'Salmiya', 'Jahra', 'Farwaniya', 'Hawalli',
-            'Doha', 'Al Wakrah', 'Al Khor', 'Lusail', 'Al Rayyan',
-            'Manama', 'Muharraq', 'Riffa', 'Hamad Town', 'Isa Town',
-            'Muscat', 'Salalah', 'Sohar', 'Nizwa', 'Sur',
-            // Africa - South Africa
-            'Johannesburg', 'Cape Town', 'Durban', 'Pretoria', 'Port Elizabeth',
-            'Bloemfontein', 'East London', 'Kimberley', 'Nelspruit', 'Polokwane',
-            // Nigeria
-            'Lagos', 'Kano', 'Ibadan', 'Kaduna', 'Port Harcourt',
-            'Benin City', 'Maiduguri', 'Zaria', 'Aba', 'Jos',
-            // Kenya
-            'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret',
-            'Thika', 'Malindi', 'Kitale', 'Kakamega', 'Nyeri',
-            // Ghana
-            'Accra', 'Kumasi', 'Tamale', 'Sekondi-Takoradi', 'Cape Coast',
-            'Obuasi', 'Tema', 'Koforidua', 'Sunyani', 'Ho',
-            // Uganda
-            'Kampala', 'Gulu', 'Lira', 'Mbarara', 'Jinja',
-            'Arua', 'Mbale', 'Mukono', 'Kasese', 'Masaka',
-            // Tanzania
-            'Dar es Salaam', 'Mwanza', 'Arusha', 'Dodoma', 'Mbeya',
-            'Morogoro', 'Tanga', 'Kahama', 'Tabora', 'Zanzibar City',
-            // Rwanda
-            'Kigali', 'Butare', 'Gitarama', 'Ruhengeri', 'Gisenyi',
-            'Byumba', 'Cyangugu', 'Kibuye', 'Kibungo', 'Nyanza',
-            // Zambia
-            'Lusaka', 'Kitwe', 'Ndola', 'Kabwe', 'Chingola',
-            'Mufulira', 'Luanshya', 'Livingstone', 'Kalulushi', 'Chililabombwe',
-            // Zimbabwe
-            'Harare', 'Bulawayo', 'Chitungwiza', 'Mutare', 'Epworth',
-            'Gweru', 'Kwekwe', 'Kadoma', 'Masvingo', 'Chinhoyi',
-            // Cameroon
-            'Douala', 'Yaoundé', 'Garoua', 'Kousséri', 'Bamenda',
-            'Maroua', 'Bafoussam', 'Mokolo', 'Ngaoundéré', 'Bertoua',
-            // South America - Brazil
-            'São Paulo', 'Rio de Janeiro', 'Brasília', 'Salvador', 'Fortaleza',
-            'Belo Horizonte', 'Manaus', 'Curitiba', 'Recife', 'Porto Alegre',
-            'Goiânia', 'Guarulhos', 'Campinas', 'Nova Iguaçu', 'São Luís',
-            // Argentina
-            'Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'La Plata',
-            'Tucumán', 'Mar del Plata', 'Salta', 'Santa Fe', 'San Juan',
-            // Chile
-            'Santiago', 'Valparaíso', 'Concepción', 'La Serena', 'Antofagasta',
-            'Temuco', 'Viña del Mar', 'Talca', 'Arica', 'Iquique',
-            // Colombia
-            'Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena',
-            'Cúcuta', 'Bucaramanga', 'Pereira', 'Santa Marta', 'Ibagué',
-            // Ecuador
-            'Guayaquil', 'Quito', 'Cuenca', 'Santo Domingo', 'Machala',
-            'Durán', 'Manta', 'Portoviejo', 'Loja', 'Ambato',
-            // Perú
-            'Lima', 'Arequipa', 'Trujillo', 'Chiclayo', 'Piura',
-            'Iquitos', 'Cusco', 'Chimbote', 'Huancayo', 'Tacna',
-            // Venezuela
-            'Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto', 'Maracay',
-            'Ciudad Guayana', 'Maturín', 'Barcelona', 'Petare', 'Turmero',
-            // Bolivia
-            'La Paz', 'Santa Cruz', 'Cochabamba', 'Oruro', 'Sucre',
-            'Tarija', 'Potosí', 'Sacaba', 'Montero', 'Quillacollo',
-            // Uruguay
-            'Montevideo', 'Salto', 'Ciudad de la Costa', 'Paysandú', 'Las Piedras',
-            'Rivera', 'Maldonado', 'Tacuarembó', 'Melo', 'Mercedes',
-            // Paraguay
-            'Asunción', 'Ciudad del Este', 'San Lorenzo', 'Luque', 'Capiatá',
-            'Lambaré', 'Fernando de la Mora', 'Limpio', 'Ñemby', 'Encarnación',
-            // Central America
-            'Panama City', 'San José', 'Managua', 'Tegucigalpa', 'San Salvador',
-            'Guatemala City', 'Belmopan', 'Belize City', 'San Pedro Sula', 'León',
-            // Mexico
-            'Mexico City', 'Guadalajara', 'Monterrey', 'Puebla', 'Tijuana',
-            'Ciudad Juárez', 'León', 'Zapopan', 'Nezahualcóyotl', 'Ecatepec',
-            // Caribbean
-            'Havana', 'Santo Domingo', 'Port-au-Prince', 'Kingston', 'Port of Spain',
-            'Bridgetown', 'Nassau', 'Georgetown', 'Paramaribo', 'Cayenne'
-          ];
-          
-          const globalCountries = [
-            // North America
-            'United States', 'Canada',
-            // Europe
-            'United Kingdom', 'Germany', 'France', 'Spain', 'Italy',
-            'Netherlands', 'Belgium', 'Switzerland', 'Sweden', 'Norway',
-            'Denmark', 'Finland', 'Poland', 'Czech Republic', 'Hungary',
-            'Austria', 'Ireland', 'Portugal', 'Greece', 'Romania',
-            'Bulgaria', 'Croatia', 'Slovenia', 'Slovakia', 'Lithuania',
-            'Latvia', 'Estonia', 'Luxembourg', 'Malta', 'Cyprus',
-            // Asia Pacific
-            'Japan', 'China', 'South Korea', 'Singapore', 'Malaysia',
-            'Philippines', 'Thailand', 'Vietnam', 'Indonesia', 'India',
-            'Sri Lanka', 'Australia', 'New Zealand', 'Taiwan', 'Hong Kong',
-            'Macau', 'Brunei', 'Cambodia', 'Laos', 'Myanmar',
-            'Bangladesh', 'Pakistan', 'Nepal', 'Bhutan', 'Maldives',
-            'Mongolia', 'Kazakhstan', 'Uzbekistan', 'Kyrgyzstan', 'Tajikistan',
-            'Turkmenistan', 'Azerbaijan', 'Georgia', 'Armenia', 'Kyrgyzstan',
-            // Middle East
-            'United Arab Emirates', 'Saudi Arabia', 'Kuwait', 'Qatar', 'Bahrain',
-            'Oman', 'Yemen', 'Jordan', 'Lebanon', 'Syria',
-            'Iraq', 'Iran', 'Israel', 'Palestine', 'Turkey',
-            // Africa
-            'South Africa', 'Nigeria', 'Kenya', 'Ghana', 'Uganda',
-            'Tanzania', 'Rwanda', 'Zambia', 'Zimbabwe', 'Cameroon',
-            'Côte d\'Ivoire', 'Senegal', 'Mali', 'Burkina Faso', 'Niger',
-            'Chad', 'Central African Republic', 'Congo', 'Gabon', 'Equatorial Guinea',
-            'São Tomé and Príncipe', 'Guinea-Bissau', 'Guinea', 'Sierra Leone', 'Liberia',
-            'Togo', 'Benin', 'Gambia', 'Cape Verde', 'Mauritania',
-            'Morocco', 'Algeria', 'Tunisia', 'Libya', 'Egypt',
-            'Sudan', 'South Sudan', 'Ethiopia', 'Eritrea', 'Djibouti',
-            'Somalia', 'Seychelles', 'Comoros', 'Madagascar', 'Mauritius',
-            'Réunion', 'Mayotte', 'Angola', 'Namibia', 'Botswana',
-            'Lesotho', 'Eswatini', 'Mozambique', 'Malawi', 'Zambia',
-            'Zimbabwe', 'Botswana', 'Namibia', 'Angola', 'Democratic Republic of the Congo',
-            'Republic of the Congo', 'Gabon', 'Equatorial Guinea', 'São Tomé and Príncipe',
-            // South America
-            'Brazil', 'Argentina', 'Chile', 'Colombia', 'Ecuador',
-            'Perú', 'Venezuela', 'Bolivia', 'Uruguay', 'Paraguay',
-            'Guyana', 'Suriname', 'French Guiana',
-            // Central America
-            'Panama', 'Costa Rica', 'Nicaragua', 'Honduras', 'El Salvador',
-            'Guatemala', 'Belize',
-            // Caribbean
-            'Cuba', 'Dominican Republic', 'Haiti', 'Jamaica', 'Trinidad and Tobago',
-            'Barbados', 'Bahamas', 'Grenada', 'Saint Vincent and the Grenadines',
-            'Saint Lucia', 'Dominica', 'Antigua and Barbuda', 'Saint Kitts and Nevis',
-            // Mexico
-            'Mexico'
-          ];
-          
-          const randomCountry = globalCountries[Math.floor(Math.random() * globalCountries.length)];
-          const randomCity = globalCities[Math.floor(Math.random() * globalCities.length)];
-          const randomISP = globalISPs[Math.floor(Math.random() * globalISPs.length)];
-          
           info = {
-            ip: `${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}`,
-            city: randomCity,
-            country: randomCountry,
-            isp: randomISP,
-            server: `${randomCity} (Auto)`,
-          };
-        }
-      } catch (apiError) {
-        console.error('All IP detection services failed:', apiError);
-        // Global ISP and location fallbacks
-        const globalISPs = [
-          'Comcast Corporation',
-          'AT&T Internet Services',
-          'Verizon Communications',
-          'Charter Communications',
-          'Cox Communications',
-          'British Telecommunications',
-          'Deutsche Telekom',
-          'Orange S.A.',
-          'Telefónica',
-          'Vodafone Group',
-          'Rogers Communications',
-          'Bell Canada',
-          'Telstra Corporation',
-          'NTT Communications',
-          'China Telecom',
-          'Reliance Jio',
-          'Bharti Airtel',
-          'Dialog Axiata PLC',
-          'Sri Lanka Telecom',
-          'Mobitel (Pvt) Ltd'
-        ];
-        
-        const globalCities = [
-          'New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix',
-          'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose',
-          'London', 'Manchester', 'Birmingham', 'Leeds', 'Liverpool',
-          'Berlin', 'Munich', 'Hamburg', 'Cologne', 'Frankfurt',
-          'Paris', 'Marseille', 'Lyon', 'Toulouse', 'Nice',
-          'Madrid', 'Barcelona', 'Valencia', 'Seville', 'Zaragoza',
-          'Toronto', 'Montreal', 'Vancouver', 'Calgary', 'Edmonton',
-          'Sydney', 'Melbourne', 'Brisbane', 'Perth', 'Adelaide',
-          'Tokyo', 'Osaka', 'Nagoya', 'Sapporo', 'Fukuoka',
-          'Beijing', 'Shanghai', 'Guangzhou', 'Shenzhen', 'Chengdu',
-          'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai',
-          'Colombo', 'Kandy', 'Galle', 'Jaffna', 'Matara'
-        ];
-        
-        const globalCountries = [
-          'United States', 'United Kingdom', 'Germany', 'France', 'Spain',
-          'Canada', 'Australia', 'Japan', 'China', 'India', 'Sri Lanka'
-        ];
-        
-        const randomCountry = globalCountries[Math.floor(Math.random() * globalCountries.length)];
-        const randomCity = globalCities[Math.floor(Math.random() * globalCities.length)];
-        const randomISP = globalISPs[Math.floor(Math.random() * globalISPs.length)];
-        
-        info = {
-          ip: `${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}`,
-          city: randomCity,
-          country: randomCountry,
-          isp: randomISP,
-          server: `${randomCity} (Auto)`,
+          ip: 'Unable to detect',
+          city: 'Location unavailable',
+          country: 'Unknown',
+          isp: 'ISP unavailable',
+          server: 'Auto Select',
         };
       }
       
       setUserInfo(info);
     } catch (error) {
       console.error('Failed to detect user info:', error);
+      // Set honest fallback on complete failure
+      setUserInfo({
+        ip: 'Detection failed',
+        city: 'Location unavailable',
+        country: 'Unknown',
+        isp: 'ISP unavailable',
+        server: 'Auto Select',
+      });
     }
   };
 
   const measurePing = async (): Promise<number> => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      throw new Error('Cannot run speed test during static generation');
+    }
+    
     const measurements: number[] = [];
-    const countPing = 10; // Like librespeed default
+    const countPing = config.test.pingCount;
     
     console.log('🚀 Starting ping test (librespeed-style)...');
     console.log(`📊 Ping count: ${countPing}`);
@@ -717,7 +342,7 @@ export function useSpeedTest() {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           },
-          signal: AbortSignal.timeout(10000) // Increased to 10 seconds for first test
+          signal: AbortSignal.timeout(10000) // 10 second timeout
         });
       
         if (response.ok) {
@@ -751,6 +376,8 @@ export function useSpeedTest() {
           // Librespeed-style minimum ping handling
           if (pingTime < 1) pingTime = 1;
           measurements.push(pingTime);
+        } else {
+          console.error(`Ping test ${i + 1} failed with status: ${response.status}`);
         }
       } catch (error) {
         console.error(`Ping test ${i + 1} failed:`, error);
@@ -773,13 +400,17 @@ export function useSpeedTest() {
     console.log(`📊 Ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${measurements.length} measurements)`);
     console.log(`📊 Using minimum ping: ${minPing.toFixed(2)}ms (librespeed-style)`);
     
-    const minPingEnv = Number(process.env.NEXT_PUBLIC_MIN_PING) || 1;
-    return Math.max(minPing, minPingEnv); // Minimum ping from env
+    return Math.max(minPing, config.speedTest.minPing); // Minimum ping from config
   };
 
   const measureJitter = async (): Promise<number> => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      throw new Error('Cannot run speed test during static generation');
+    }
+    
     const measurements: number[] = [];
-    const countPing = 20; // More measurements for jitter
+    const countPing = config.test.jitterCount;
     
     console.log('🚀 Starting jitter test (librespeed-style)...');
     console.log(`📊 Jitter ping count: ${countPing}`);
@@ -823,6 +454,8 @@ export function useSpeedTest() {
           // Librespeed-style minimum ping handling
           if (pingTime < 1) pingTime = 1;
           measurements.push(pingTime);
+        } else {
+          console.error(`Jitter test ${i + 1} failed with status: ${response.status}`);
         }
       } catch (error) {
         console.error(`Jitter test ${i + 1} failed:`, error);
@@ -857,23 +490,22 @@ export function useSpeedTest() {
     }
     
     console.log(`📊 Jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements, librespeed-style)`);
-    const minJitter = Number(process.env.NEXT_PUBLIC_MIN_JITTER) || 1;
-    return Math.max(jitter, minJitter); // Minimum jitter from env
+    return Math.max(jitter, config.speedTest.minJitter); // Minimum jitter from config
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    // Use environment variable or fallback to defaults
-    const envTestSizes = process.env.NEXT_PUBLIC_SPEED_TEST_SIZES;
-    const testSizes = envTestSizes
-      ? envTestSizes.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0)
-      : [1, 2, 5, 10]; // MB
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      throw new Error('Cannot run speed test during static generation');
+    }
     
+    const testSizes = config.speedTest.sizes;
     const individualSpeeds: number[] = [];
     let successfulTests = 0;
     
-    // Librespeed settings
-    const overheadCompensationFactor = 1.06; // 6% overhead compensation
-    const graceTime = 1.5; // 1.5 seconds grace time like librespeed
+    // Librespeed settings from config
+    const overheadCompensationFactor = config.performance.overheadCompensation;
+    const graceTime = config.performance.graceTimeDownload;
     const testDuration = 15; // 15 seconds max test duration like librespeed
     
     console.log('🚀 Starting download speed test (librespeed-style)...');
@@ -889,7 +521,7 @@ export function useSpeedTest() {
       console.log(`\n📥 Download test ${i + 1}/${testSizes.length}: ${size}MB (${sizeInBytes} bytes)`);
       
       try {
-        // Measure the entire request-response cycle for accurate network timing
+        // Use high-precision timing with performance.now()
         const startTime = performance.now();
         console.log(`⏱️  Starting request at ${new Date().toISOString()}`);
         
@@ -908,7 +540,6 @@ export function useSpeedTest() {
         });
         
         console.log(`📡 Response status: ${response.status} ${response.statusText}`);
-        console.log(`📡 Response headers:`, Object.fromEntries(response.headers.entries()));
         
         if (response.ok) {
           console.log(`📥 Starting to read response data...`);
@@ -941,11 +572,11 @@ export function useSpeedTest() {
           }
           
           // Apply grace time logic like librespeed
-          const effectiveDuration = Math.max(totalDuration - (graceTime * 1000), 100); // Minimum 100ms
+          const effectiveDuration = Math.max(totalDuration - (graceTime * 1000), 50); // Minimum 50ms for more accuracy
           
-          // Librespeed-style speed calculation with overhead compensation
+          // More accurate speed calculation without excessive compensation
           const rawSpeed = (dataSize * 8) / (effectiveDuration / 1000); // bits per second
-          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with overhead compensation
+          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with minimal overhead compensation
           
           individualSpeeds.push(speed);
           successfulTests++;
@@ -968,23 +599,31 @@ export function useSpeedTest() {
       throw new Error('Download test failed - no successful measurements');
     }
     
-    // Calculate average speed from individual tests (like Speedtest.net)
-    const avgSpeed = individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
+    // Calculate more realistic speed (weighted average, excluding outliers)
+    const sortedSpeeds = individualSpeeds.sort((a, b) => a - b);
+    const middleSpeeds = sortedSpeeds.slice(1, -1); // Remove highest and lowest
+    const finalSpeed = middleSpeeds.length > 0 
+      ? middleSpeeds.reduce((a, b) => a + b, 0) / middleSpeeds.length
+      : individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
     
-    console.log(`📊 Average download speed: ${avgSpeed.toFixed(2)} Mbps (from ${individualSpeeds.length} tests)`);
-    
-    console.log(`📊 Final download speed: ${avgSpeed.toFixed(2)} Mbps`);
-    return avgSpeed;
+    console.log(`📊 Individual speeds: ${individualSpeeds.map(s => s.toFixed(2)).join(', ')} Mbps`);
+    console.log(`📊 Final download speed (excluding outliers): ${finalSpeed.toFixed(2)} Mbps`);
+    return finalSpeed;
   };
 
   const measureUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    const testSizes = [0.5, 1, 2, 5]; // MB
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      throw new Error('Cannot run speed test during static generation');
+    }
+    
+    const testSizes = config.test.uploadSizes;
     const individualSpeeds: number[] = [];
     let successfulTests = 0;
     
-    // Librespeed settings
-    const overheadCompensationFactor = 1.06; // 6% overhead compensation
-    const graceTime = 3; // 3 seconds grace time for upload like librespeed
+    // Librespeed settings from config
+    const overheadCompensationFactor = config.performance.overheadCompensation;
+    const graceTime = config.performance.graceTimeUpload;
     
     console.log('🚀 Starting upload speed test (librespeed-style)...');
     console.log(`⚙️  Overhead compensation: ${overheadCompensationFactor}`);
@@ -995,9 +634,11 @@ export function useSpeedTest() {
       onProgress((i / testSizes.length) * 100);
       
       try {
-        // Generate test data to upload
+        // Generate test data to upload more efficiently
         const testData = new Uint8Array(size * 1024 * 1024);
         const pattern = new Uint8Array(1024); // 1KB pattern for faster generation
+        
+        // Generate random pattern once
         for (let j = 0; j < pattern.length; j++) {
           pattern[j] = Math.floor(Math.random() * 256);
         }
@@ -1007,12 +648,16 @@ export function useSpeedTest() {
           testData[j] = pattern[j % pattern.length];
         }
         
+        // Use high-precision timing with performance.now()
         const startTime = performance.now();
+        console.log(`📤 Upload test ${i + 1}: Starting ${size}MB upload...`);
+        
         const response = await fetch('/api/speed-test', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/octet-stream',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'X-Test-Id': `upload-${Date.now()}-${i}`,
           },
           body: testData,
           signal: AbortSignal.timeout(30000) // 30 second timeout for large files
@@ -1023,18 +668,22 @@ export function useSpeedTest() {
           const duration = endTime - startTime;
           const dataSize = size * 1024 * 1024; // bytes
           
-          // Apply grace time logic like librespeed
-          const effectiveDuration = Math.max(duration - (graceTime * 1000), 100); // Minimum 100ms
+          console.log(`📊 Upload test ${i + 1}: ${size}MB in ${duration.toFixed(2)}ms`);
           
-          // Librespeed-style speed calculation with overhead compensation
+          // Apply grace time logic like librespeed
+          const effectiveDuration = Math.max(duration - (graceTime * 1000), 50); // Minimum 50ms for more accuracy
+          
+          // More accurate speed calculation without excessive compensation
           const rawSpeed = (dataSize * 8) / (effectiveDuration / 1000); // bits per second
-          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with overhead compensation
+          const speed = (rawSpeed * overheadCompensationFactor) / 1000000; // Mbps with minimal overhead compensation
           
           individualSpeeds.push(speed);
           successfulTests++;
           
-          console.log(`Upload test ${i + 1}: ${size}MB in ${duration}ms = ${speed.toFixed(2)} Mbps`);
+          console.log(`✅ Upload test ${i + 1}: ${size}MB in ${duration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
           console.log(`📈 Speed calculation: (${dataSize} bytes × 8 bits × ${overheadCompensationFactor}) ÷ (${effectiveDuration.toFixed(2)}ms ÷ 1000) ÷ 1,000,000 = ${speed.toFixed(2)} Mbps`);
+        } else {
+          console.error(`Upload test ${i + 1} failed with status: ${response.status}`);
         }
         
         // Small delay between tests
@@ -1051,12 +700,16 @@ export function useSpeedTest() {
       throw new Error('Upload test failed - no successful measurements');
     }
     
-    // Calculate average speed from individual tests (like Speedtest.net)
-    const avgSpeed = individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
-    console.log(`📊 Average upload speed: ${avgSpeed.toFixed(2)} Mbps (from ${individualSpeeds.length} tests)`);
+    // Calculate more realistic speed (weighted average, excluding outliers)
+    const sortedSpeeds = individualSpeeds.sort((a, b) => a - b);
+    const middleSpeeds = sortedSpeeds.slice(1, -1); // Remove highest and lowest
+    const finalSpeed = middleSpeeds.length > 0 
+      ? middleSpeeds.reduce((a, b) => a + b, 0) / middleSpeeds.length
+      : individualSpeeds.reduce((a, b) => a + b, 0) / individualSpeeds.length;
     
-    console.log(`📊 Final upload speed: ${avgSpeed.toFixed(2)} Mbps`);
-    return avgSpeed;
+    console.log(`📊 Individual speeds: ${individualSpeeds.map(s => s.toFixed(2)).join(', ')} Mbps`);
+    console.log(`📊 Final upload speed (excluding outliers): ${finalSpeed.toFixed(2)} Mbps`);
+    return finalSpeed;
   };
 
   const measureNetworkQuality = (downloadSpeed: number, uploadSpeed: number, ping: number, jitter: number) => {
@@ -1089,6 +742,12 @@ export function useSpeedTest() {
   };
 
   const startTest = useCallback(async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      console.warn('Cannot run speed test during static generation');
+      return;
+    }
+    
     if (isRunning) return;
     
     setIsRunning(true);
@@ -1184,13 +843,13 @@ export function useSpeedTest() {
 
   const clearHistory = useCallback(() => {
     setHistory([]);
-    if (typeof window !== 'undefined') {
+    if (isBrowser()) {
       localStorage.removeItem('speedtest-history');
     }
   }, []);
 
   const saveResult = useCallback((result: TestResult) => {
-    if (typeof window !== 'undefined') {
+    if (isBrowser()) {
       try {
         // Save to localStorage
         const newHistory = [result, ...history];
@@ -1199,7 +858,7 @@ export function useSpeedTest() {
       } catch (error) {
         console.error('Error saving result:', error);
         // Fallback: save only the new result
-        if (typeof window !== 'undefined') {
+        if (isBrowser()) {
           localStorage.setItem('speedtest-history', JSON.stringify([result]));
         }
       }

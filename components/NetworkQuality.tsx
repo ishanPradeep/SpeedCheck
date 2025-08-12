@@ -4,8 +4,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import Progress from '@/components/ui/custom-progress';
-import { Download, Upload, RefreshCw, Loader2 } from 'lucide-react';
+import { Download, Upload, RefreshCw, Loader2, Activity, Wifi, Zap, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { isStaticGeneration } from '@/lib/utils';
 
 interface NetworkQualityProps {
   results: {
@@ -46,6 +47,12 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchNetworkData = async () => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration() || typeof window === 'undefined') {
+      console.warn('Cannot fetch network quality data during static generation');
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const response = await fetch('/api/network-quality', {
@@ -72,7 +79,7 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
 
   useEffect(() => {
     // Only fetch data in the browser, not during SSR or static generation
-    if (typeof window !== 'undefined') {
+    if (!isStaticGeneration() && typeof window !== 'undefined') {
       fetchNetworkData();
     }
   }, []);
@@ -88,133 +95,258 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
     reliability: apiData?.networkQuality?.reliability ?? (networkQuality?.reliability || 0)
   };
 
+  const getQualityColor = (value: number, type: 'ping' | 'jitter' | 'reliability') => {
+    if (type === 'ping') {
+      if (value <= 30) return 'text-green-400';
+      if (value <= 60) return 'text-blue-400';
+      if (value <= 100) return 'text-yellow-400';
+      return 'text-red-400';
+    }
+    if (type === 'jitter') {
+      if (value <= 5) return 'text-green-400';
+      if (value <= 15) return 'text-blue-400';
+      if (value <= 30) return 'text-yellow-400';
+      return 'text-red-400';
+    }
+    if (type === 'reliability') {
+      if (value >= 90) return 'text-green-400';
+      if (value >= 75) return 'text-blue-400';
+      if (value >= 60) return 'text-yellow-400';
+      return 'text-red-400';
+    }
+    return 'text-gray-400';
+  };
+
+  const getQualityText = (value: number, type: 'ping' | 'jitter' | 'reliability') => {
+    if (type === 'ping') {
+      if (value <= 30) return 'Excellent';
+      if (value <= 60) return 'Good';
+      if (value <= 100) return 'Fair';
+      return 'Poor';
+    }
+    if (type === 'jitter') {
+      if (value <= 5) return 'Excellent';
+      if (value <= 15) return 'Good';
+      if (value <= 30) return 'Fair';
+      return 'Poor';
+    }
+    if (type === 'reliability') {
+      if (value >= 90) return 'Excellent';
+      if (value >= 75) return 'Good';
+      if (value >= 60) return 'Fair';
+      return 'Poor';
+    }
+    return 'Unknown';
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Network Quality Section */}
-      <Card className={isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-gray-200'}>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-              Network Quality
-            </h3>
+    <div className="space-y-8">
+      {/* Enhanced Network Quality Section */}
+      <Card className={`backdrop-blur-xl border transition-all duration-500 hover:shadow-xl transform hover:scale-[1.01] ${
+        isDarkMode 
+          ? 'bg-white/10 border-white/20 hover:bg-white/15 shadow-xl' 
+          : 'bg-white/90 border-gray-200 hover:bg-white/95 shadow-xl'
+      }`}>
+        <CardContent className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-4">
+              <div className={`p-4 rounded-xl backdrop-blur-sm border ${
+                isDarkMode 
+                  ? 'bg-blue-500/20 border-blue-500/30' 
+                  : 'bg-blue-100 border-blue-200'
+              }`}>
+                <Activity className={`h-8 w-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+              </div>
+              <div>
+                <h3 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Network Quality
+                </h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Real-time network performance metrics
+                </p>
+              </div>
+            </div>
             <Button
               onClick={fetchNetworkData}
               disabled={isLoading}
               variant="outline"
-              size="sm"
-              className={`transition-all duration-300 ${
+              size="lg"
+              className={`transition-all duration-300 transform hover:scale-105 ${
                 isDarkMode 
-                  ? 'border-white/20 text-white hover:bg-white/10' 
+                  ? 'border-white/20 text-white hover:bg-white/10 backdrop-blur-sm' 
                   : 'border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-5 w-5 animate-spin mr-3" />
               ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-5 w-5 mr-3" />
               )}
-              Refresh
+              Refresh Data
             </Button>
           </div>
           
           {lastUpdated && (
-            <div className={`text-xs mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <div className={`text-sm mb-6 p-3 rounded-lg backdrop-blur-sm border ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 text-gray-400' 
+                : 'bg-gray-50 border-gray-200 text-gray-600'
+            }`}>
               Last updated: {lastUpdated.toLocaleTimeString()}
             </div>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className={`text-center p-4 rounded-lg border ${
-              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="text-3xl font-bold text-blue-400 mb-2">
-                {displayData.ping}ms
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <div className={`p-3 rounded-xl ${
+                  isDarkMode 
+                    ? 'bg-blue-500/20 border border-blue-500/30' 
+                    : 'bg-blue-100 border border-blue-200'
+                }`}>
+                  <Wifi className="h-6 w-6 text-blue-400" />
+                </div>
+                <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Ping
+                </span>
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                Ping
+              <div className={`text-4xl font-bold mb-3 ${getQualityColor(displayData.ping, 'ping')}`}>
+                {displayData.ping.toFixed(1)}ms
               </div>
               <Progress 
                 value={Math.max(100 - (displayData.ping / 2), 0)} 
-                className="h-2"
+                className="h-3 mb-3"
                 aria-label="Ping quality indicator"
               />
-              <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                {displayData.ping <= 30 ? 'Excellent' : displayData.ping <= 60 ? 'Good' : displayData.ping <= 100 ? 'Fair' : 'Poor'}
+              <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {getQualityText(displayData.ping, 'ping')}
               </div>
             </div>
             
-            <div className={`text-center p-4 rounded-lg border ${
-              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="text-3xl font-bold text-purple-400 mb-2">
-                {displayData.jitter}ms
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <div className={`p-3 rounded-xl ${
+                  isDarkMode 
+                    ? 'bg-purple-500/20 border border-purple-500/30' 
+                    : 'bg-purple-100 border border-purple-200'
+                }`}>
+                  <Activity className="h-6 w-6 text-purple-400" />
+                </div>
+                <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Jitter
+                </span>
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                Jitter
+              <div className={`text-4xl font-bold mb-3 ${getQualityColor(displayData.jitter, 'jitter')}`}>
+                {displayData.jitter.toFixed(1)}ms
               </div>
               <Progress 
                 value={Math.max(100 - (displayData.jitter * 10), 0)} 
-                className="h-2"
+                className="h-3 mb-3"
                 aria-label="Jitter quality indicator"
               />
-              <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                {displayData.jitter <= 5 ? 'Excellent' : displayData.jitter <= 15 ? 'Good' : displayData.jitter <= 30 ? 'Fair' : 'Poor'}
+              <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {getQualityText(displayData.jitter, 'jitter')}
               </div>
             </div>
             
-            <div className={`text-center p-4 rounded-lg border ${
-              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="text-3xl font-bold text-green-400 mb-2">
-                {displayData.reliability}%
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <div className={`p-3 rounded-xl ${
+                  isDarkMode 
+                    ? 'bg-green-500/20 border border-green-500/30' 
+                    : 'bg-green-100 border border-green-200'
+                }`}>
+                  <Zap className="h-6 w-6 text-green-400" />
+                </div>
+                <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Reliability
+                </span>
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                Reliability
+              <div className={`text-4xl font-bold mb-3 ${getQualityColor(displayData.reliability, 'reliability')}`}>
+                {displayData.reliability}%
               </div>
               <Progress 
                 value={displayData.reliability} 
-                className="h-2"
+                className="h-3 mb-3"
                 aria-label="Reliability quality indicator"
               />
-              <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                {displayData.reliability >= 90 ? 'Excellent' : displayData.reliability >= 75 ? 'Good' : displayData.reliability >= 60 ? 'Fair' : 'Poor'}
+              <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {getQualityText(displayData.reliability, 'reliability')}
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Others Section - Download & Upload Values */}
-      <Card className={isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-gray-200'}>
-        <CardContent className="p-6">
-          <h3 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-            Others
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Download Speed */}
-            <div className={`text-center p-6 rounded-lg border ${
-              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+      {/* Enhanced Speed Metrics Section */}
+      <Card className={`backdrop-blur-xl border transition-all duration-500 hover:shadow-xl transform hover:scale-[1.01] ${
+        isDarkMode 
+          ? 'bg-white/10 border-white/20 hover:bg-white/15 shadow-xl' 
+          : 'bg-white/90 border-gray-200 hover:bg-white/95 shadow-xl'
+      }`}>
+        <CardContent className="p-8">
+          <div className="flex items-center space-x-4 mb-8">
+            <div className={`p-4 rounded-xl backdrop-blur-sm border ${
+              isDarkMode 
+                ? 'bg-indigo-500/20 border-indigo-500/30' 
+                : 'bg-indigo-100 border-indigo-200'
             }`}>
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Download className="h-6 w-6 text-green-400" />
-                <span className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <TrendingUp className={`h-8 w-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
+            </div>
+            <div>
+              <h3 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                Speed Metrics
+              </h3>
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Download and upload performance analysis
+              </p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Download Speed */}
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                : 'bg-white/60 border-gray-200 hover:bg-white/80'
+            }`}>
+              <div className="flex items-center justify-center space-x-3 mb-6">
+                <div className={`p-4 rounded-xl ${
+                  isDarkMode 
+                    ? 'bg-green-500/20 border border-green-500/30' 
+                    : 'bg-green-100 border border-green-200'
+                }`}>
+                  <Download className="h-8 w-8 text-green-400" />
+                </div>
+                <span className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Download Speed
                 </span>
               </div>
-              <div className="text-4xl font-bold text-green-400 mb-2">
-                {displayData.downloadSpeed.toFixed(2)}
+              <div className="text-5xl font-bold text-green-400 mb-4">
+                {displayData.downloadSpeed.toFixed(1)}
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-lg font-medium mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Mbps
               </div>
-              <div className="mt-4">
+              <div className="space-y-3">
                 <Progress 
                   value={Math.min((displayData.downloadSpeed / 100) * 100, 100)} 
-                  className="h-3"
+                  className="h-4"
                   aria-label="Download speed indicator"
                 />
-                <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {displayData.downloadSpeed >= 100 ? 'Excellent' : 
                    displayData.downloadSpeed >= 50 ? 'Good' : 
                    displayData.downloadSpeed >= 25 ? 'Fair' : 
@@ -224,28 +356,36 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
             </div>
             
             {/* Upload Speed */}
-            <div className={`text-center p-6 rounded-lg border ${
-              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="flex items-center justify-center space-x-2 mb-4">
-                <Upload className="h-6 w-6 text-blue-400" />
-                <span className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <div className="flex items-center justify-center space-x-3 mb-6">
+                <div className={`p-4 rounded-xl ${
+                  isDarkMode 
+                    ? 'bg-blue-500/20 border border-blue-500/30' 
+                    : 'bg-blue-100 border border-blue-200'
+                }`}>
+                  <Upload className="h-8 w-8 text-blue-400" />
+                </div>
+                <span className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Upload Speed
                 </span>
               </div>
-              <div className="text-4xl font-bold text-blue-400 mb-2">
-                {displayData.uploadSpeed.toFixed(2)}
+              <div className="text-5xl font-bold text-blue-400 mb-4">
+                {displayData.uploadSpeed.toFixed(1)}
               </div>
-              <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-lg font-medium mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Mbps
               </div>
-              <div className="mt-4">
+              <div className="space-y-3">
                 <Progress 
                   value={Math.min((displayData.uploadSpeed / 50) * 100, 100)} 
-                  className="h-3"
+                  className="h-4"
                   aria-label="Upload speed indicator"
                 />
-                <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {displayData.uploadSpeed >= 50 ? 'Excellent' : 
                    displayData.uploadSpeed >= 25 ? 'Good' : 
                    displayData.uploadSpeed >= 10 ? 'Fair' : 
@@ -255,18 +395,30 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
             </div>
           </div>
           
-          {/* API Status Indicator */}
+          {/* Enhanced API Status Indicator */}
           {apiData && (
-            <div className={`mt-4 p-3 rounded-lg text-sm ${
+            <div className={`mt-8 p-4 rounded-xl text-sm font-medium backdrop-blur-sm border transition-all duration-300 ${
               apiData.success 
-                ? isDarkMode ? 'bg-green-900/20 border-green-500/30 text-green-300' : 'bg-green-50 border-green-200 text-green-700'
-                : isDarkMode ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-            } border`}>
-              {apiData.success ? (
-                <span>✓ Real-time data from API</span>
-              ) : (
-                <span>⚠ Using fallback data (API unavailable)</span>
-              )}
+                ? isDarkMode 
+                  ? 'bg-green-500/20 border-green-500/30 text-green-300' 
+                  : 'bg-green-50 border-green-200 text-green-700'
+                : isDarkMode 
+                  ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300' 
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+            }`}>
+              <div className="flex items-center space-x-3">
+                {apiData.success ? (
+                  <>
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span>✓ Real-time data from API</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                    <span>⚠ Using fallback data (API unavailable)</span>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

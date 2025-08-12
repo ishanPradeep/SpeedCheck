@@ -5,6 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Check if the code is running in a browser environment
+ * This prevents API calls during static generation
+ */
+export function isBrowser(): boolean {
+  return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
+/**
+ * Check if the code is running during static generation
+ * This helps prevent API calls during build time
+ */
+export function isStaticGeneration(): boolean {
+  return !isBrowser();
+}
+
 // Safe localStorage utilities for Next.js
 export const safeLocalStorage = {
   getItem: (key: string): string | null => {

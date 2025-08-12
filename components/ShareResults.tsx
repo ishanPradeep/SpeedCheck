@@ -38,9 +38,9 @@ export default function ShareResults({ results, userInfo, onClose, isDarkMode = 
   const [activeTab, setActiveTab] = useState<'social' | 'copy'>('social');
 
   const shareText = `🚀 My Internet Speed Test Results:
-📥 Download: ${results.downloadSpeed.toFixed(2)} Mbps
-📤 Upload: ${results.uploadSpeed.toFixed(2)} Mbps  
-⚡ Ping: ${results.ping}ms
+📥 Download: ${results.downloadSpeed.toFixed(1)} Mbps
+📤 Upload: ${results.uploadSpeed.toFixed(1)} Mbps  
+⚡ Ping: ${results.ping.toFixed(1)}ms
 🏆 Grade: ${results.grade}
 
 Test your speed at SpeedCheck Pro!`;
@@ -151,7 +151,7 @@ Test your speed at SpeedCheck Pro!`;
                   </span>
                 </div>
                 <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {results.downloadSpeed.toFixed(2)}
+                                      {results.downloadSpeed.toFixed(1)}
                 </div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Mbps
@@ -168,7 +168,7 @@ Test your speed at SpeedCheck Pro!`;
                   </span>
                 </div>
                 <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {results.uploadSpeed.toFixed(2)}
+                                      {results.uploadSpeed.toFixed(1)}
                 </div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Mbps
@@ -185,7 +185,7 @@ Test your speed at SpeedCheck Pro!`;
                   </span>
                 </div>
                 <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  {results.ping}
+                                      {results.ping.toFixed(1)}
                 </div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   ms
