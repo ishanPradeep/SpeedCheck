@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import GoogleTagManager from '@/components/GoogleTagManager'
+import GoogleAnalytics from '@/components/GoogleAnalytics'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -69,6 +70,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   const gtmId = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-W3TWP66V';
+  const gaId = process.env.NEXT_PUBLIC_GA_ID || 'G-1XB7TBR4PW';
   
   return (
     <html lang="en" suppressHydrationWarning>
@@ -80,6 +82,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <GoogleTagManager gtmId={gtmId} />
+        <GoogleAnalytics gaId={gaId} />
         {children}
         <Analytics />
       </body>

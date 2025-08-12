@@ -39,6 +39,16 @@ export const trackSpeedTest = (data: {
       test_duration: data.testDuration,
     },
   });
+  
+  // Google Ads conversion tracking
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', 'conversion', {
+      'send_to': 'AW-CONVERSION_ID/CONVERSION_LABEL',
+      'value': data.downloadSpeed,
+      'currency': 'USD',
+      'transaction_id': Date.now().toString(),
+    });
+  }
 };
 
 // Track page view

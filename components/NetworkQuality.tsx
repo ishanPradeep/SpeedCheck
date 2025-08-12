@@ -147,21 +147,21 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
           ? 'bg-white/10 border-white/20 hover:bg-white/15 shadow-xl' 
           : 'bg-white/90 border-gray-200 hover:bg-white/95 shadow-xl'
       }`}>
-        <CardContent className="p-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <div className={`p-4 rounded-xl backdrop-blur-sm border ${
+        <CardContent className="p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className={`p-3 sm:p-4 rounded-xl backdrop-blur-sm border ${
                 isDarkMode 
                   ? 'bg-blue-500/20 border-blue-500/30' 
                   : 'bg-blue-100 border-blue-200'
               }`}>
-                <Activity className={`h-8 w-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                <Activity className={`h-6 w-6 sm:h-8 sm:w-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
               </div>
               <div>
-                <h3 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <h3 className={`text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Network Quality
                 </h3>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Real-time network performance metrics
                 </p>
               </div>
@@ -171,23 +171,23 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
               disabled={isLoading}
               variant="outline"
               size="lg"
-              className={`transition-all duration-300 transform hover:scale-105 ${
+              className={`transition-all duration-300 transform hover:scale-105 w-full sm:w-auto ${
                 isDarkMode 
                   ? 'border-white/20 text-white hover:bg-white/10 backdrop-blur-sm' 
                   : 'border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin mr-3" />
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin mr-2 sm:mr-3" />
               ) : (
-                <RefreshCw className="h-5 w-5 mr-3" />
+                <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3" />
               )}
-              Refresh Data
+              <span className="text-sm sm:text-base">Refresh Data</span>
             </Button>
           </div>
           
           {lastUpdated && (
-            <div className={`text-sm mb-6 p-3 rounded-lg backdrop-blur-sm border ${
+            <div className={`text-xs sm:text-sm mb-4 sm:mb-6 p-2 sm:p-3 rounded-lg backdrop-blur-sm border ${
               isDarkMode 
                 ? 'bg-white/5 border-white/10 text-gray-400' 
                 : 'bg-gray-50 border-gray-200 text-gray-600'
@@ -196,93 +196,93 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
             </div>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border transition-all duration-300 hover:scale-105 ${
               isDarkMode 
                 ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                 : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className={`p-3 rounded-xl ${
+              <div className="flex items-center justify-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                <div className={`p-2 sm:p-3 rounded-xl ${
                   isDarkMode 
                     ? 'bg-blue-500/20 border border-blue-500/30' 
                     : 'bg-blue-100 border border-blue-200'
                 }`}>
-                  <Wifi className="h-6 w-6 text-blue-400" />
+                  <Wifi className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
                 </div>
-                <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <span className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Ping
                 </span>
               </div>
-              <div className={`text-4xl font-bold mb-3 ${getQualityColor(displayData.ping, 'ping')}`}>
+              <div className={`text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 ${getQualityColor(displayData.ping, 'ping')}`}>
                 {displayData.ping.toFixed(1)}ms
               </div>
               <Progress 
                 value={Math.max(100 - (displayData.ping / 2), 0)} 
-                className="h-3 mb-3"
+                className="h-2 sm:h-3 mb-2 sm:mb-3"
                 aria-label="Ping quality indicator"
               />
-              <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {getQualityText(displayData.ping, 'ping')}
               </div>
             </div>
             
-            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border transition-all duration-300 hover:scale-105 ${
               isDarkMode 
                 ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                 : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className={`p-3 rounded-xl ${
+              <div className="flex items-center justify-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                <div className={`p-2 sm:p-3 rounded-xl ${
                   isDarkMode 
                     ? 'bg-purple-500/20 border border-purple-500/30' 
                     : 'bg-purple-100 border border-purple-200'
                 }`}>
-                  <Activity className="h-6 w-6 text-purple-400" />
+                  <Activity className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
                 </div>
-                <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <span className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Jitter
                 </span>
               </div>
-              <div className={`text-4xl font-bold mb-3 ${getQualityColor(displayData.jitter, 'jitter')}`}>
+              <div className={`text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 ${getQualityColor(displayData.jitter, 'jitter')}`}>
                 {displayData.jitter.toFixed(1)}ms
               </div>
               <Progress 
                 value={Math.max(100 - (displayData.jitter * 10), 0)} 
-                className="h-3 mb-3"
+                className="h-2 sm:h-3 mb-2 sm:mb-3"
                 aria-label="Jitter quality indicator"
               />
-              <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {getQualityText(displayData.jitter, 'jitter')}
               </div>
             </div>
             
-            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border transition-all duration-300 hover:scale-105 ${
               isDarkMode 
                 ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                 : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className={`p-3 rounded-xl ${
+              <div className="flex items-center justify-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                <div className={`p-2 sm:p-3 rounded-xl ${
                   isDarkMode 
                     ? 'bg-green-500/20 border border-green-500/30' 
                     : 'bg-green-100 border border-green-200'
                 }`}>
-                  <Zap className="h-6 w-6 text-green-400" />
+                  <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-green-400" />
                 </div>
-                <span className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <span className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Reliability
                 </span>
               </div>
-              <div className={`text-4xl font-bold mb-3 ${getQualityColor(displayData.reliability, 'reliability')}`}>
+              <div className={`text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 ${getQualityColor(displayData.reliability, 'reliability')}`}>
                 {displayData.reliability}%
               </div>
               <Progress 
                 value={displayData.reliability} 
-                className="h-3 mb-3"
+                className="h-2 sm:h-3 mb-2 sm:mb-3"
                 aria-label="Reliability quality indicator"
               />
-              <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 {getQualityText(displayData.reliability, 'reliability')}
               </div>
             </div>
@@ -296,57 +296,57 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
           ? 'bg-white/10 border-white/20 hover:bg-white/15 shadow-xl' 
           : 'bg-white/90 border-gray-200 hover:bg-white/95 shadow-xl'
       }`}>
-        <CardContent className="p-8">
-          <div className="flex items-center space-x-4 mb-8">
-            <div className={`p-4 rounded-xl backdrop-blur-sm border ${
+        <CardContent className="p-4 sm:p-6 lg:p-8">
+          <div className="flex items-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
+            <div className={`p-3 sm:p-4 rounded-xl backdrop-blur-sm border ${
               isDarkMode 
                 ? 'bg-indigo-500/20 border-indigo-500/30' 
                 : 'bg-indigo-100 border-indigo-200'
             }`}>
-              <TrendingUp className={`h-8 w-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
+              <TrendingUp className={`h-6 w-6 sm:h-8 sm:w-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
             </div>
             <div>
-              <h3 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <h3 className={`text-2xl sm:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 Speed Metrics
               </h3>
-              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Download and upload performance analysis
               </p>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
             {/* Download Speed */}
-            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border transition-all duration-300 hover:scale-105 ${
               isDarkMode 
                 ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                 : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="flex items-center justify-center space-x-3 mb-6">
-                <div className={`p-4 rounded-xl ${
+              <div className="flex items-center justify-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+                <div className={`p-3 sm:p-4 rounded-xl ${
                   isDarkMode 
                     ? 'bg-green-500/20 border border-green-500/30' 
                     : 'bg-green-100 border border-green-200'
                 }`}>
-                  <Download className="h-8 w-8 text-green-400" />
+                  <Download className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
                 </div>
-                <span className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <span className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Download Speed
                 </span>
               </div>
-              <div className="text-5xl font-bold text-green-400 mb-4">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-green-400 mb-3 sm:mb-4">
                 {displayData.downloadSpeed.toFixed(1)}
               </div>
-              <div className={`text-lg font-medium mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-sm sm:text-lg font-medium mb-4 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Mbps
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <Progress 
                   value={Math.min((displayData.downloadSpeed / 100) * 100, 100)} 
-                  className="h-4"
+                  className="h-3 sm:h-4"
                   aria-label="Download speed indicator"
                 />
-                <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {displayData.downloadSpeed >= 100 ? 'Excellent' : 
                    displayData.downloadSpeed >= 50 ? 'Good' : 
                    displayData.downloadSpeed >= 25 ? 'Fair' : 
@@ -356,36 +356,36 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
             </div>
             
             {/* Upload Speed */}
-            <div className={`text-center backdrop-blur-sm rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+            <div className={`text-center backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border transition-all duration-300 hover:scale-105 ${
               isDarkMode 
                 ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                 : 'bg-white/60 border-gray-200 hover:bg-white/80'
             }`}>
-              <div className="flex items-center justify-center space-x-3 mb-6">
-                <div className={`p-4 rounded-xl ${
+              <div className="flex items-center justify-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+                <div className={`p-3 sm:p-4 rounded-xl ${
                   isDarkMode 
                     ? 'bg-blue-500/20 border border-blue-500/30' 
                     : 'bg-blue-100 border border-blue-200'
                 }`}>
-                  <Upload className="h-8 w-8 text-blue-400" />
+                  <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
                 </div>
-                <span className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <span className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Upload Speed
                 </span>
               </div>
-              <div className="text-5xl font-bold text-blue-400 mb-4">
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-blue-400 mb-3 sm:mb-4">
                 {displayData.uploadSpeed.toFixed(1)}
               </div>
-              <div className={`text-lg font-medium mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <div className={`text-sm sm:text-lg font-medium mb-4 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Mbps
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <Progress 
                   value={Math.min((displayData.uploadSpeed / 50) * 100, 100)} 
-                  className="h-4"
+                  className="h-3 sm:h-4"
                   aria-label="Upload speed indicator"
                 />
-                <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className={`text-xs sm:text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {displayData.uploadSpeed >= 50 ? 'Excellent' : 
                    displayData.uploadSpeed >= 25 ? 'Good' : 
                    displayData.uploadSpeed >= 10 ? 'Fair' : 
@@ -397,7 +397,7 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
           
           {/* Enhanced API Status Indicator */}
           {apiData && (
-            <div className={`mt-8 p-4 rounded-xl text-sm font-medium backdrop-blur-sm border transition-all duration-300 ${
+            <div className={`mt-6 sm:mt-8 p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-medium backdrop-blur-sm border transition-all duration-300 ${
               apiData.success 
                 ? isDarkMode 
                   ? 'bg-green-500/20 border-green-500/30 text-green-300' 
@@ -406,7 +406,7 @@ const NetworkQuality: React.FC<NetworkQualityProps> = ({ results, networkQuality
                   ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300' 
                   : 'bg-yellow-50 border-yellow-200 text-yellow-700'
             }`}>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 {apiData.success ? (
                   <>
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />

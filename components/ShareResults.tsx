@@ -95,22 +95,22 @@ Test your speed at SpeedCheck Pro!`;
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <Card className={`w-full max-w-lg backdrop-blur-md border transition-all duration-300 hover:shadow-2xl ${
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+      <Card className={`w-full max-w-sm sm:max-w-lg backdrop-blur-md border transition-all duration-300 hover:shadow-2xl ${
         isDarkMode 
           ? 'bg-white/10 border-white/20' 
           : 'bg-white/90 border-gray-200'
       }`}>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className={`flex items-center space-x-3 ${
+          <CardTitle className={`flex items-center space-x-2 sm:space-x-3 ${
             isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>
             <div className="p-2 bg-blue-500/20 rounded-lg">
-              <Share2 className="h-5 w-5 text-blue-400" />
+              <Share2 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
             </div>
             <div>
-              <span>Share Results</span>
-              <p className={`text-sm font-normal ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className="text-base sm:text-lg">Share Results</span>
+              <p className={`text-xs sm:text-sm font-normal ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Share your speed test results
               </p>
             </div>
@@ -127,30 +127,30 @@ Test your speed at SpeedCheck Pro!`;
           </Button>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4 sm:space-y-6">
           {/* Enhanced Results Summary */}
-          <div className={`rounded-lg p-6 border backdrop-blur-sm ${
+          <div className={`rounded-lg p-4 sm:p-6 border backdrop-blur-sm ${
             isDarkMode 
               ? 'bg-white/5 border-white/10' 
               : 'bg-gray-50 border-gray-200'
           }`}>
-            <div className="flex items-center space-x-2 mb-4">
-              <Zap className="h-5 w-5 text-yellow-400" />
-              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className="flex items-center space-x-2 mb-3 sm:mb-4">
+              <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" />
+              <span className={`text-sm sm:text-base font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Speed Test Results
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-6 text-center">
-              <div className={`p-4 rounded-lg border ${
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 text-center">
+              <div className={`p-3 sm:p-4 rounded-lg border ${
                 isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
               }`}>
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Download className="h-4 w-4 text-green-400" />
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className="flex items-center justify-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 text-green-400" />
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     Download
                   </span>
                 </div>
-                <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`text-lg sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                       {results.downloadSpeed.toFixed(1)}
                 </div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -158,16 +158,16 @@ Test your speed at SpeedCheck Pro!`;
                 </div>
               </div>
               
-              <div className={`p-4 rounded-lg border ${
+              <div className={`p-3 sm:p-4 rounded-lg border ${
                 isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
               }`}>
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Upload className="h-4 w-4 text-blue-400" />
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className="flex items-center justify-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-blue-400" />
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     Upload
                   </span>
                 </div>
-                <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`text-lg sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                       {results.uploadSpeed.toFixed(1)}
                 </div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -175,16 +175,16 @@ Test your speed at SpeedCheck Pro!`;
                 </div>
               </div>
               
-              <div className={`p-4 rounded-lg border ${
+              <div className={`p-3 sm:p-4 rounded-lg border ${
                 isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
               }`}>
-                <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Timer className="h-4 w-4 text-yellow-400" />
-                  <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className="flex items-center justify-center space-x-1 sm:space-x-2 mb-1 sm:mb-2">
+                  <Timer className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-400" />
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     Ping
                   </span>
                 </div>
-                <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div className={`text-lg sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                       {results.ping.toFixed(1)}
                 </div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -192,15 +192,15 @@ Test your speed at SpeedCheck Pro!`;
                 </div>
               </div>
               
-              <div className={`p-4 rounded-lg border ${
+              <div className={`p-3 sm:p-4 rounded-lg border ${
                 isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
               }`}>
-                <div className={`text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className={`text-xs sm:text-sm mb-1 sm:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   Grade
                 </div>
                 <Badge 
                   variant="secondary" 
-                  className={`text-lg px-3 py-1 border ${getGradeColor(results.grade)}`}
+                  className={`text-sm sm:text-lg px-2 sm:px-3 py-1 border ${getGradeColor(results.grade)}`}
                 >
                   {results.grade}
                 </Badge>
@@ -209,12 +209,12 @@ Test your speed at SpeedCheck Pro!`;
           </div>
 
           {/* Enhanced Share Options */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {/* Tab Navigation */}
             <div className="flex space-x-1 bg-white/10 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab('social')}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-300 ${
+                className={`flex-1 py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                   activeTab === 'social'
                     ? 'bg-blue-600 text-white'
                     : isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
@@ -224,7 +224,7 @@ Test your speed at SpeedCheck Pro!`;
               </button>
               <button
                 onClick={() => setActiveTab('copy')}
-                className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all duration-300 ${
+                className={`flex-1 py-2 px-2 sm:px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                   activeTab === 'copy'
                     ? 'bg-blue-600 text-white'
                     : isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
@@ -235,67 +235,72 @@ Test your speed at SpeedCheck Pro!`;
             </div>
 
             {activeTab === 'social' ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <Button
                     onClick={shareToTwitter}
                     variant="outline"
+                    size="sm"
                     className={`transition-all duration-300 transform hover:scale-105 ${
                       isDarkMode 
                         ? 'border-white/20 text-white hover:bg-white/10' 
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <Twitter className="h-4 w-4 mr-2" />
-                    Twitter
+                    <Twitter className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="text-xs sm:text-sm">Twitter</span>
                   </Button>
                   
                   <Button
                     onClick={shareToFacebook}
                     variant="outline"
+                    size="sm"
                     className={`transition-all duration-300 transform hover:scale-105 ${
                       isDarkMode 
                         ? 'border-white/20 text-white hover:bg-white/10' 
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <Facebook className="h-4 w-4 mr-2" />
-                    Facebook
+                    <Facebook className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="text-xs sm:text-sm">Facebook</span>
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <Button
                     onClick={shareToWhatsApp}
                     variant="outline"
+                    size="sm"
                     className={`transition-all duration-300 transform hover:scale-105 ${
                       isDarkMode 
                         ? 'border-white/20 text-white hover:bg-white/10' 
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    WhatsApp
+                    <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="text-xs sm:text-sm">WhatsApp</span>
                   </Button>
                   
                   <Button
                     onClick={shareViaEmail}
                     variant="outline"
+                    size="sm"
                     className={`transition-all duration-300 transform hover:scale-105 ${
                       isDarkMode 
                         ? 'border-white/20 text-white hover:bg-white/10' 
                         : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Email
+                    <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <span className="text-xs sm:text-sm">Email</span>
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 <Button
                   onClick={copyToClipboard}
+                  size="sm"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 transform hover:scale-105"
                 >
                   {copied ? (
