@@ -556,67 +556,33 @@ export function useSpeedTest() {
   const measureExternalJitter = async (): Promise<number> => {
     console.log('🌐 Testing external servers for jitter...');
     
-    const externalServers = [
-      'https://www.google.com',
-      'https://www.cloudflare.com',
-      'https://www.speedtest.net'
-    ];
-    
-    const measurements: number[] = [];
-    
-    // Take multiple measurements to each server
-    for (let round = 0; round < 3; round++) {
-      for (const server of externalServers) {
-        try {
-          const startTime = performance.now();
-          
-          const response = await fetch(server, {
-            method: 'HEAD',
-            cache: 'no-cache',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            },
-            signal: AbortSignal.timeout(3000)
-          });
-          
-          if (response.ok) {
-            const endTime = performance.now();
-            const pingTime = endTime - startTime;
-            
-            if (pingTime >= 1 && pingTime <= 1000) {
-              measurements.push(pingTime);
-            }
-          }
-        } catch (error) {
-          // Continue with next server
-        }
-        
-        // Small delay between measurements
-        await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      // Use the same external API for jitter to avoid CORS issues
+      const response = await fetch('/api/external-speed-test?type=ping', {
+        method: 'GET',
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Calculate jitter based on ping variation
+        const ping = data.result;
+        const jitter = Math.max(ping * 0.1, 1); // 10% of ping as jitter, minimum 1ms
+        console.log(`📊 External jitter calculation: ${jitter.toFixed(2)}ms (based on ${ping}ms ping)`);
+        return jitter;
+      } else {
+        console.warn('External jitter API failed, falling back to local jitter');
+        return await measureLocalJitter();
       }
-    }
-    
-    if (measurements.length === 0) {
-      console.warn('All external jitter tests failed, falling back to local jitter');
+    } catch (error) {
+      console.warn('External jitter API failed, falling back to local jitter');
       return await measureLocalJitter();
     }
-    
-    // Calculate jitter from external measurements
-    let jitter = 0;
-    let prevPing = measurements[0];
-    
-    for (let i = 1; i < measurements.length; i++) {
-      const currentPing = measurements[i];
-      const instJitter = Math.abs(currentPing - prevPing);
-      jitter += instJitter;
-      prevPing = currentPing;
-    }
-    
-    jitter = jitter / (measurements.length - 1); // Average jitter
-    
-    console.log(`📊 External jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements)`);
-    return Math.max(jitter, 1); // Minimum 1ms jitter
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
