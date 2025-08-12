@@ -31,11 +31,10 @@ export async function GET(request: NextRequest) {
   const size = searchParams.get('size');
   const requestId = `static-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  console.log(`🚀 [${requestId}] Static file request: ${size}`);
+
 
   try {
     if (!size || !TEST_FILES[size as keyof typeof TEST_FILES]) {
-      console.error(`❌ [${requestId}] Invalid file size: ${size}`);
       return new Response(JSON.stringify({ 
         error: 'Invalid file size',
         availableSizes: Object.keys(TEST_FILES)
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest) {
     const file = TEST_FILES[size as keyof typeof TEST_FILES];
     const fileSize = file.length;
 
-    console.log(`📤 [${requestId}] Serving ${size} file (${fileSize} bytes)`);
+
 
     const headers = {
       'Content-Type': 'application/octet-stream',
@@ -70,7 +69,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error(`❌ [${requestId}] Static file error:`, error);
     return new Response(JSON.stringify({ 
       error: 'File serving failed',
       details: error instanceof Error ? error.message : 'Unknown error',

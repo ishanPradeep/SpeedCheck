@@ -148,7 +148,6 @@ const measurePing = async () => {
   
   // If local ping is too high, use external
   if (localPing > 200) {
-    console.log('Local ping too high, using external service');
     return await measureExternalPing();
   }
   

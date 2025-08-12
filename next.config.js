@@ -11,18 +11,7 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react'],
   },
   
-  // Ensure proper dependency resolution
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
-  },
+
   
   // Headers for CORS and caching
   async headers() {
@@ -84,8 +73,17 @@ const nextConfig = {
     ];
   },
   
-  // Optimize bundle size
+  // Optimize bundle size and ensure proper dependency resolution
   webpack: (config, { dev, isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    
     if (!dev && !isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',

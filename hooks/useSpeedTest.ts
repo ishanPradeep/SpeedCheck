@@ -60,7 +60,6 @@ export function useSpeedTest() {
   useEffect(() => {
     // Only run in the browser, not during SSR or static generation
     if (isBrowser()) {
-      console.log('Component mounted, loading history and user info...');
       loadHistory();
       detectUserInfo();
     }
@@ -91,11 +90,6 @@ export function useSpeedTest() {
     // Only run in the browser, not during SSR or static generation
     if (isStaticGeneration()) {
       return;
-    }
-    
-    console.log(`History state updated: ${history.length} items`);
-    if (history.length > 0) {
-      console.log('First history item:', history[0]);
     }
   }, [history]);
 
@@ -142,10 +136,8 @@ export function useSpeedTest() {
               b.timestamp.getTime() - a.timestamp.getTime()
             );
 
-          console.log(`Loaded ${validHistory.length} history items`);
           setHistory(validHistory);
         } else {
-          console.log('No history data found in localStorage');
           setHistory([]);
         }
       } catch (error) {
@@ -183,7 +175,7 @@ export function useSpeedTest() {
         
         // Save to localStorage
         localStorage.setItem('speedtest-history', JSON.stringify(newHistory));
-        console.log(`Saved test result to history. Total items: ${newHistory.length}`);
+
       } catch (error) {
         console.error('Failed to save to history:', error);
         // Try to save just the current result if the full history fails
@@ -191,7 +183,6 @@ export function useSpeedTest() {
             if (isBrowser()) {
             localStorage.setItem('speedtest-history', JSON.stringify([result]));
           }
-          console.log('Saved single test result as fallback');
         } catch (fallbackError) {
           console.error('Failed to save even single result:', fallbackError);
         }
@@ -288,7 +279,7 @@ export function useSpeedTest() {
               if (info.ip !== 'Unknown') break;
             }
           } catch (serviceError) {
-            console.log(`Service ${service} failed, trying next...`);
+
             continue;
           }
         }
@@ -324,7 +315,7 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-    console.log('🚀 Starting external ping test...');
+
     
     // Use external servers for accurate ping measurement
     return await measureExternalPing();
@@ -335,7 +326,7 @@ export function useSpeedTest() {
     const measurements: number[] = [];
     const countPing = Math.min(config.test.pingCount, 3); // Reduced for faster testing
     
-    console.log('📡 Testing local server ping (fallback)...');
+    
     
     // Take multiple ping measurements using simple network round-trip time
     for (let i = 0; i < countPing; i++) {
@@ -357,7 +348,7 @@ export function useSpeedTest() {
           const endTime = performance.now();
           const pingTime = endTime - startTime;
           
-          console.log(`📊 Local ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
+
           
           // Only accept reasonable ping values (1ms to 1000ms)
           if (pingTime >= 1 && pingTime <= 1000) {
@@ -386,13 +377,13 @@ export function useSpeedTest() {
     const minPing = Math.min(...measurements);
     const avgPing = measurements.reduce((a, b) => a + b, 0) / measurements.length;
     
-    console.log(`📊 Local ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${measurements.length} measurements)`);
+
     
     return Math.max(minPing, 1); // Minimum 1ms ping
   };
 
   const measureExternalPing = async (): Promise<number> => {
-    console.log('🌐 Testing external servers for accurate ping...');
+
     
     try {
       const response = await fetch('/api/external-speed-test?type=ping', {
@@ -407,8 +398,7 @@ export function useSpeedTest() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`📊 External ping result: ${data.result}ms from ${data.server}`);
-        console.log(`📊 All ping results:`, data.allResults);
+
         return data.result;
       } else {
         console.warn('External ping API failed, falling back to direct testing');
@@ -453,11 +443,11 @@ export function useSpeedTest() {
           
           if (pingTime >= 1 && pingTime <= 1000) {
             pings.push(pingTime);
-            console.log(`🌐 ${server}: ${pingTime.toFixed(2)}ms`);
+
           }
         }
       } catch (error) {
-        console.log(`🌐 ${server}: Failed`);
+
       }
     }
     
@@ -470,8 +460,7 @@ export function useSpeedTest() {
     const minPing = Math.min(...pings);
     const avgPing = pings.reduce((a, b) => a + b, 0) / pings.length;
     
-    console.log(`📊 External ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${pings.length} servers)`);
-    console.log(`📊 Using external ping: ${minPing.toFixed(2)}ms`);
+
     
     return Math.max(minPing, 1); // Minimum 1ms ping
   };
@@ -482,7 +471,7 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-    console.log('🚀 Starting external jitter test...');
+
     
     // Use external servers for jitter measurement
     return await measureExternalJitter();
@@ -493,7 +482,7 @@ export function useSpeedTest() {
     const measurements: number[] = [];
     const countPing = Math.min(config.test.jitterCount, 5); // Reduced for faster testing
     
-    console.log('📡 Testing local server jitter (fallback)...');
+
     
     // Take multiple measurements for jitter calculation
     for (let i = 0; i < countPing; i++) {
@@ -549,12 +538,12 @@ export function useSpeedTest() {
     
     jitter = jitter / (measurements.length - 1); // Average jitter
     
-    console.log(`📊 Local jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements)`);
+
     return Math.max(jitter, 1); // Minimum 1ms jitter
   };
 
   const measureExternalJitter = async (): Promise<number> => {
-    console.log('🌐 Testing external servers for jitter...');
+
     
     try {
       // Use the same external API for jitter to avoid CORS issues
@@ -573,7 +562,7 @@ export function useSpeedTest() {
         // Calculate jitter based on ping variation
         const ping = data.result;
         const jitter = Math.max(ping * 0.1, 1); // 10% of ping as jitter, minimum 1ms
-        console.log(`📊 External jitter calculation: ${jitter.toFixed(2)}ms (based on ${ping}ms ping)`);
+
         return jitter;
       } else {
         console.warn('External jitter API failed, falling back to local jitter');
@@ -591,14 +580,14 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-    console.log('🚀 Starting external download speed test...');
+
     
     // Use external speed test services for more accurate results
     return await measureExternalDownloadSpeed(onProgress);
   };
 
   const measureExternalDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    console.log('🌐 Using external services for download speed test...');
+
     
     try {
       // Simulate progress
@@ -619,7 +608,7 @@ export function useSpeedTest() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`📊 External download speed: ${data.result} ${data.unit}`);
+
         return data.result;
       } else {
         console.warn('External download API failed, falling back to estimation');
@@ -640,7 +629,7 @@ export function useSpeedTest() {
     const variation = (Math.random() - 0.5) * 2; // ±1 Mbps variation
     const estimatedSpeed = Math.max(1, baseSpeed + variation);
     
-    console.log(`📊 Estimated download speed: ${estimatedSpeed.toFixed(2)} Mbps (target: ~8.59 Mbps)`);
+
     return estimatedSpeed;
   };
 
@@ -650,14 +639,14 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-    console.log('🚀 Starting external upload speed test...');
+
     
     // Use external speed test services for more accurate results
     return await measureExternalUploadSpeed(onProgress);
   };
 
   const measureExternalUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    console.log('🌐 Using external services for upload speed test...');
+
     
     try {
       // Simulate progress
@@ -678,7 +667,7 @@ export function useSpeedTest() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`📊 External upload speed: ${data.result} ${data.unit}`);
+
         return data.result;
       } else {
         console.warn('External upload API failed, falling back to estimation');
@@ -699,7 +688,7 @@ export function useSpeedTest() {
     const variation = (Math.random() - 0.5) * 1.5; // ±0.75 Mbps variation
     const estimatedSpeed = Math.max(1, baseSpeed + variation);
     
-    console.log(`📊 Estimated upload speed: ${estimatedSpeed.toFixed(2)} Mbps (target: ~6.08 Mbps)`);
+
     return estimatedSpeed;
   };
 
@@ -830,7 +819,6 @@ export function useSpeedTest() {
   };
 
   const refreshHistory = () => {
-    console.log('Manually refreshing history...');
     loadHistory();
   };
 

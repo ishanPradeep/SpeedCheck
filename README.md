@@ -49,8 +49,8 @@ DATABASE_URL=your_database_url_here
 DATABASE_API_KEY=your_database_api_key_here
 
 # Analytics Configuration
-GOOGLE_ANALYTICS_ID=your_google_analytics_id_here
-GOOGLE_TAG_MANAGER_ID=your_gtm_id_here
+NEXT_PUBLIC_GA_ID=your_google_analytics_id_here
+NEXT_PUBLIC_GTM_ID=GTM-W3TWP66V
 
 # External API Keys (for IP geolocation, etc.)
 IP_API_KEY=your_ip_api_key_here
@@ -150,12 +150,49 @@ LOG_LEVEL=info
 
 ## Configuration
 
-The application uses environment variables for configuration. Copy the `.env` file and customize the settings:
+The application uses environment variables for configuration. Copy the `.env.example` file and customize the settings:
 
 ```bash
-cp .env .env.local
+cp env.example .env.local
 # Edit .env.local with your API keys and settings
 ```
+
+### Google Tag Manager Setup
+
+The application includes Google Tag Manager (GTM) integration for analytics and tracking. The GTM ID is already configured as `GTM-W3TWP66V`.
+
+To customize the GTM setup:
+
+1. **Update the GTM ID** in your `.env.local` file:
+   ```bash
+   NEXT_PUBLIC_GTM_ID=your_gtm_id_here
+   ```
+
+2. **Use the GTM utility functions** for custom tracking:
+   ```typescript
+   import { trackSpeedTest, trackPageView, trackUserInteraction } from '@/lib/gtm';
+   
+   // Track speed test completion
+   trackSpeedTest({
+     downloadSpeed: 50.5,
+     uploadSpeed: 25.2,
+     ping: 15,
+     jitter: 2.1,
+     testDuration: 30000
+   });
+   
+   // Track page views
+   trackPageView('/speed-test');
+   
+   // Track user interactions
+   trackUserInteraction('click', 'button', 'start_test');
+   ```
+
+3. **Available tracking events**:
+   - `speed_test_completed`: When a speed test finishes
+   - `page_view`: When users navigate to different pages
+   - `user_interaction`: For button clicks and user actions
+   - `error`: For tracking errors and issues
 
 ### Key Environment Variables:
 

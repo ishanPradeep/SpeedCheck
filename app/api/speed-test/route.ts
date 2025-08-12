@@ -3,19 +3,14 @@ import config from '@/config/speed-test.config';
 
 export async function POST(request: NextRequest) {
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`🚀 [${requestId}] Speed test request received`);
   
   try {
     const contentType = request.headers.get('content-type');
-    console.log(`📋 [${requestId}] Content-Type: ${contentType}`);
-    console.log(`📋 [${requestId}] Headers:`, Object.fromEntries(request.headers.entries()));
     
     if (contentType?.includes('application/json')) {
       // Download test - like Speedtest.net
-      console.log(`📥 [${requestId}] Processing download test request`);
       
       const body = await request.json();
-      console.log(`📋 [${requestId}] Request body:`, body);
       
       const { type, size } = body;
       
@@ -29,11 +24,8 @@ export async function POST(request: NextRequest) {
       
       // Validate size parameter using config
       const dataSize = Math.min(Math.max(size || config.speedTest.minFileSize, 1024), config.speedTest.maxFileSize);
-      console.log(`📏 [${requestId}] Requested size: ${size} bytes`);
-      console.log(`📏 [${requestId}] Validated size: ${dataSize} bytes (${(dataSize / 1024 / 1024).toFixed(2)} MB)`);
       
       // Generate random data more efficiently using a pattern
-      console.log(`🔄 [${requestId}] Generating test data...`);
       const dataStartTime = performance.now();
       
       const data = new Uint8Array(dataSize);
@@ -50,7 +42,6 @@ export async function POST(request: NextRequest) {
       }
       
       const dataEndTime = performance.now();
-      console.log(`✅ [${requestId}] Data generation completed in ${(dataEndTime - dataStartTime).toFixed(2)}ms`);
       
       // Librespeed-style headers
       const headers = {
@@ -67,8 +58,6 @@ export async function POST(request: NextRequest) {
         'X-Request-Id': requestId,
       };
       
-      console.log(`📤 [${requestId}] Sending ${dataSize} bytes with librespeed-style headers`);
-      
       return new Response(data, {
         status: 200,
         headers: headers,
@@ -76,7 +65,6 @@ export async function POST(request: NextRequest) {
       
     } else if (contentType?.includes('application/octet-stream')) {
       // Upload test - like Speedtest.net
-      console.log(`📤 [${requestId}] Processing upload test request`);
       const startTime = performance.now();
       
       // Read the uploaded data to measure actual transfer
@@ -93,7 +81,6 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        console.log(`📥 [${requestId}] Starting to read upload data...`);
         let chunkCount = 0;
         
         while (true) {
@@ -104,14 +91,10 @@ export async function POST(request: NextRequest) {
           totalSize += value.length;
           chunkCount++;
           
-          if (chunkCount % 10 === 0) {
-            console.log(`📊 [${requestId}] Read ${chunkCount} chunks, total size: ${totalSize} bytes`);
-          }
+
         }
         
-        console.log(`✅ [${requestId}] Upload data reading completed`);
-        console.log(`📊 [${requestId}] Total chunks: ${chunkCount}`);
-        console.log(`📊 [${requestId}] Total size: ${totalSize} bytes (${(totalSize / 1024 / 1024).toFixed(2)} MB)`);
+
         
       } finally {
         reader.releaseLock();
@@ -123,10 +106,7 @@ export async function POST(request: NextRequest) {
       // Calculate actual upload speed based on real transfer time
       const actualSpeed = (totalSize * 8) / (duration / 1000); // Mbps - Fixed calculation (was missing division)
       
-      console.log(`📈 [${requestId}] Upload speed calculation:`);
-      console.log(`   - Data size: ${totalSize} bytes`);
-      console.log(`   - Duration: ${duration.toFixed(2)}ms`);
-      console.log(`   - Speed: ${actualSpeed.toFixed(2)} Mbps`);
+
       
       return new Response(JSON.stringify({
         success: true,
@@ -147,19 +127,13 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    console.error(`❌ [${requestId}] Invalid content type: ${contentType}`);
+
     return new Response(JSON.stringify({ error: 'Invalid content type' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
     
   } catch (error) {
-    console.error(`❌ [${requestId}] Speed test error:`, error);
-    console.error(`🔍 [${requestId}] Error details:`, {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: Date.now(),
-    });
     
     return new Response(JSON.stringify({ 
       error: 'Test failed', 
@@ -174,7 +148,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  console.log('📋 Speed test API status request received');
   
   return new Response(JSON.stringify({
     status: 'ready',

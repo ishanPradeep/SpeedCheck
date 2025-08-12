@@ -108,7 +108,6 @@ SPEED_TEST_MIN_FILE_SIZE=1048576
 // Add to your app for monitoring
 export function reportWebVitals(metric) {
   if (metric.label === 'web-vital') {
-    console.log(metric);
     // Send to your analytics service
   }
 }

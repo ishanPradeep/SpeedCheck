@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "fix-deps": "npm install --legacy-peer-deps",
-    "clean": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps"
+    "clean": "rm -rf node_modules package-lock.json && npm install --legacy-peer-deps",
+    "setup": "scripts\\setup-env.bat",
+    "setup:unix": "bash scripts/setup-env.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
