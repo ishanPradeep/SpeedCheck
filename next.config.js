@@ -11,6 +11,19 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react'],
   },
   
+  // Ensure proper dependency resolution
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
+  },
+  
   // Headers for CORS and caching
   async headers() {
     return [

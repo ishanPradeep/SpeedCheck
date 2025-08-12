@@ -150,7 +150,7 @@ export default function Home() {
                     ? 'from-blue-400 to-cyan-400' 
                     : 'from-blue-600 to-cyan-600'
                 } bg-clip-text text-transparent transition-all duration-300`}>
-                  SpeedCheck Pro
+                  GlobalSpeedTrack
                 </h1>
                 <div className="flex items-center space-x-2">
                   <StatusIcon className={`h-4 w-4 ${connectionStatus.color}`} />
