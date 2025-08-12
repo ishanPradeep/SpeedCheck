@@ -29,6 +29,20 @@ export default function TestFixesPage() {
     addLog('🚀 Starting ping test...');
     
     try {
+      // Get server information first
+      addLog('🔍 Getting server information...');
+      try {
+        const serverResponse = await fetch('/api/server-info');
+        if (serverResponse.ok) {
+          const serverData = await serverResponse.json();
+          addLog(`🏠 Server Region: ${serverData.server.region}`);
+          addLog(`🌐 Server Platform: ${serverData.server.platform}`);
+          addLog(`🔗 Server Hostname: ${serverData.server.hostname}`);
+        }
+      } catch (error) {
+        addLog('⚠️ Could not get server information');
+      }
+      
       // Test your own server first
       addLog('📡 Testing your server ping...');
       const ownMeasurements: number[] = [];
@@ -68,6 +82,18 @@ export default function TestFixesPage() {
         const avgPing = ownMeasurements.reduce((a, b) => a + b, 0) / ownMeasurements.length;
         
         addLog(`✅ Your server ping: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms`);
+        
+        // Analyze ping quality
+        if (minPing < 50) {
+          addLog('🟢 Excellent ping (< 50ms)');
+        } else if (minPing < 100) {
+          addLog('🟡 Good ping (50-100ms)');
+        } else if (minPing < 200) {
+          addLog('🟠 Fair ping (100-200ms)');
+        } else {
+          addLog('🔴 Poor ping (> 200ms) - Server may be too far away');
+        }
+        
         setResults(prev => ({ ...prev, ping: minPing }));
       }
       
@@ -207,11 +233,40 @@ export default function TestFixesPage() {
     setResults(null);
   };
 
+  const getServerInfo = async () => {
+    if (isStaticGeneration()) {
+      addLog('❌ Cannot get server info during static generation');
+      return;
+    }
+    
+    setLoading(true);
+    addLog('🔍 Getting server information...');
+    
+    try {
+      const response = await fetch('/api/server-info');
+      if (response.ok) {
+        const data = await response.json();
+        addLog('📋 Server Information:');
+        addLog(`🏠 Region: ${data.server.region}`);
+        addLog(`🌐 Platform: ${data.server.platform}`);
+        addLog(`🔗 Hostname: ${data.server.hostname}`);
+        addLog(`⚙️ Environment: ${data.server.environment}`);
+        addLog(`📡 Your IP: ${data.headers['x-forwarded-for'] || data.headers['x-real-ip'] || 'Unknown'}`);
+      } else {
+        addLog('❌ Failed to get server information');
+      }
+    } catch (error) {
+      addLog(`❌ Server info error: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <h1 className="text-3xl font-bold mb-6">Speed Test Fixes Verification</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <button
           onClick={testPing}
           disabled={loading}
@@ -232,6 +287,13 @@ export default function TestFixesPage() {
           className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded disabled:opacity-50"
         >
           Test Upload
+        </button>
+        <button
+          onClick={getServerInfo}
+          disabled={loading}
+          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          Server Info
         </button>
         <button
           onClick={clearLogs}
