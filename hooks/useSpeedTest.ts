@@ -324,11 +324,26 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-    const measurements: number[] = [];
-    const countPing = config.test.pingCount;
+    console.log('🚀 Starting hybrid ping test...');
     
-    console.log('🚀 Starting ping test (simple network measurement)...');
-    console.log(`📊 Ping count: ${countPing}`);
+    // First, try to measure ping to our own server
+    const localPing = await measureLocalPing();
+    
+    // If local ping is too high (> 200ms), use external services
+    if (localPing > 200) {
+      console.log(`📊 Local ping too high (${localPing.toFixed(2)}ms), using external services...`);
+      return await measureExternalPing();
+    }
+    
+    console.log(`📊 Using local ping: ${localPing.toFixed(2)}ms`);
+    return localPing;
+  };
+
+  const measureLocalPing = async (): Promise<number> => {
+    const measurements: number[] = [];
+    const countPing = Math.min(config.test.pingCount, 5); // Reduced for faster testing
+    
+    console.log('📡 Testing local server ping...');
     
     // Take multiple ping measurements using simple network round-trip time
     for (let i = 0; i < countPing; i++) {
@@ -350,19 +365,19 @@ export function useSpeedTest() {
           const endTime = performance.now();
           const pingTime = endTime - startTime;
           
-          console.log(`📊 Ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
+          console.log(`📊 Local ping test ${i + 1}: ${pingTime.toFixed(2)}ms`);
           
           // Only accept reasonable ping values (1ms to 1000ms)
           if (pingTime >= 1 && pingTime <= 1000) {
             measurements.push(pingTime);
           } else {
-            console.warn(`📊 Ping test ${i + 1}: Skipping outlier value ${pingTime.toFixed(2)}ms`);
+            console.warn(`📊 Local ping test ${i + 1}: Skipping outlier value ${pingTime.toFixed(2)}ms`);
           }
         } else {
-          console.error(`Ping test ${i + 1} failed with status: ${response.status}`);
+          console.error(`Local ping test ${i + 1} failed with status: ${response.status}`);
         }
       } catch (error) {
-        console.error(`Ping test ${i + 1} failed:`, error);
+        console.error(`Local ping test ${i + 1} failed:`, error);
         // Continue with next test
       }
       
@@ -371,16 +386,72 @@ export function useSpeedTest() {
     }
     
     if (measurements.length === 0) {
-      console.warn('All ping tests failed');
-      throw new Error('Ping test failed - no successful measurements');
+      console.warn('All local ping tests failed');
+      throw new Error('Local ping test failed - no successful measurements');
     }
     
     // Use the minimum ping for accuracy
     const minPing = Math.min(...measurements);
     const avgPing = measurements.reduce((a, b) => a + b, 0) / measurements.length;
     
-    console.log(`📊 Ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${measurements.length} measurements)`);
-    console.log(`📊 Using minimum ping: ${minPing.toFixed(2)}ms`);
+    console.log(`📊 Local ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${measurements.length} measurements)`);
+    
+    return Math.max(minPing, 1); // Minimum 1ms ping
+  };
+
+  const measureExternalPing = async (): Promise<number> => {
+    console.log('🌐 Testing external servers for better ping...');
+    
+    const externalServers = [
+      'https://www.google.com',
+      'https://www.cloudflare.com',
+      'https://www.speedtest.net',
+      'https://www.fast.com',
+      'https://www.akamai.com'
+    ];
+    
+    const pings: number[] = [];
+    
+    // Test each external server
+    for (const server of externalServers) {
+      try {
+        const startTime = performance.now();
+        
+        const response = await fetch(server, {
+          method: 'HEAD',
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          },
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+        
+        if (response.ok) {
+          const endTime = performance.now();
+          const pingTime = endTime - startTime;
+          
+          if (pingTime >= 1 && pingTime <= 1000) {
+            pings.push(pingTime);
+            console.log(`🌐 ${server}: ${pingTime.toFixed(2)}ms`);
+          }
+        }
+      } catch (error) {
+        console.log(`🌐 ${server}: Failed`);
+      }
+    }
+    
+    if (pings.length === 0) {
+      console.warn('All external ping tests failed, falling back to local ping');
+      return await measureLocalPing();
+    }
+    
+    // Use the minimum external ping
+    const minPing = Math.min(...pings);
+    const avgPing = pings.reduce((a, b) => a + b, 0) / pings.length;
+    
+    console.log(`📊 External ping results: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms (from ${pings.length} servers)`);
+    console.log(`📊 Using external ping: ${minPing.toFixed(2)}ms`);
     
     return Math.max(minPing, 1); // Minimum 1ms ping
   };
@@ -391,11 +462,24 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-    const measurements: number[] = [];
-    const countPing = config.test.jitterCount;
+    console.log('🚀 Starting jitter test...');
     
-    console.log('🚀 Starting jitter test (simple network measurement)...');
-    console.log(`📊 Jitter ping count: ${countPing}`);
+    // Use the same approach as ping - if local ping is high, use external for jitter too
+    const localPing = await measureLocalPing();
+    
+    if (localPing > 200) {
+      console.log(`📊 Local ping high (${localPing.toFixed(2)}ms), using external servers for jitter...`);
+      return await measureExternalJitter();
+    }
+    
+    return await measureLocalJitter();
+  };
+
+  const measureLocalJitter = async (): Promise<number> => {
+    const measurements: number[] = [];
+    const countPing = Math.min(config.test.jitterCount, 10); // Reduced for faster testing
+    
+    console.log('📡 Testing local server jitter...');
     
     // Take multiple measurements for jitter calculation
     for (let i = 0; i < countPing; i++) {
@@ -422,10 +506,10 @@ export function useSpeedTest() {
             measurements.push(pingTime);
           }
         } else {
-          console.error(`Jitter test ${i + 1} failed with status: ${response.status}`);
+          console.error(`Local jitter test ${i + 1} failed with status: ${response.status}`);
         }
       } catch (error) {
-        console.error(`Jitter test ${i + 1} failed:`, error);
+        console.error(`Local jitter test ${i + 1} failed:`, error);
         // Continue with next test
       }
       
@@ -434,8 +518,8 @@ export function useSpeedTest() {
     }
     
     if (measurements.length === 0) {
-      console.warn('All jitter tests failed');
-      throw new Error('Jitter test failed - no successful measurements');
+      console.warn('All local jitter tests failed');
+      throw new Error('Local jitter test failed - no successful measurements');
     }
     
     // Simple jitter calculation: average of ping variations
@@ -451,7 +535,73 @@ export function useSpeedTest() {
     
     jitter = jitter / (measurements.length - 1); // Average jitter
     
-    console.log(`📊 Jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements)`);
+    console.log(`📊 Local jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements)`);
+    return Math.max(jitter, 1); // Minimum 1ms jitter
+  };
+
+  const measureExternalJitter = async (): Promise<number> => {
+    console.log('🌐 Testing external servers for jitter...');
+    
+    const externalServers = [
+      'https://www.google.com',
+      'https://www.cloudflare.com',
+      'https://www.speedtest.net'
+    ];
+    
+    const measurements: number[] = [];
+    
+    // Take multiple measurements to each server
+    for (let round = 0; round < 3; round++) {
+      for (const server of externalServers) {
+        try {
+          const startTime = performance.now();
+          
+          const response = await fetch(server, {
+            method: 'HEAD',
+            cache: 'no-cache',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            },
+            signal: AbortSignal.timeout(3000)
+          });
+          
+          if (response.ok) {
+            const endTime = performance.now();
+            const pingTime = endTime - startTime;
+            
+            if (pingTime >= 1 && pingTime <= 1000) {
+              measurements.push(pingTime);
+            }
+          }
+        } catch (error) {
+          // Continue with next server
+        }
+        
+        // Small delay between measurements
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    if (measurements.length === 0) {
+      console.warn('All external jitter tests failed, falling back to local jitter');
+      return await measureLocalJitter();
+    }
+    
+    // Calculate jitter from external measurements
+    let jitter = 0;
+    let prevPing = measurements[0];
+    
+    for (let i = 1; i < measurements.length; i++) {
+      const currentPing = measurements[i];
+      const instJitter = Math.abs(currentPing - prevPing);
+      jitter += instJitter;
+      prevPing = currentPing;
+    }
+    
+    jitter = jitter / (measurements.length - 1); // Average jitter
+    
+    console.log(`📊 External jitter calculation: ${jitter.toFixed(2)}ms (from ${measurements.length} measurements)`);
     return Math.max(jitter, 1); // Minimum 1ms jitter
   };
 
