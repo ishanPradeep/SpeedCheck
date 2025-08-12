@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import GoogleTagManager from '@/components/GoogleTagManager'
 import GoogleAnalytics from '@/components/GoogleAnalytics'
+import CookieConsent from '@/components/CookieConsent'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -85,6 +86,7 @@ export default function RootLayout({
         <GoogleAnalytics gaId={gaId} />
         {children}
         <Analytics />
+        <CookieConsent />
       </body>
     </html>
   )

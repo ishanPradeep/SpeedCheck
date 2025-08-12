@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Mail, Globe, Shield, FileText, Cookie } from 'lucide-react';
+import CookiePreferences from './CookiePreferences';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -116,6 +117,7 @@ export default function Footer() {
             <Link href="/cookies" className="text-muted-foreground hover:text-primary transition-colors">
               Cookies
             </Link>
+            <CookiePreferences />
           </div>
         </div>
       </div>
