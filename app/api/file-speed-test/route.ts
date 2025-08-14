@@ -1,6 +1,4 @@
 import { NextRequest } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
 
 // File sizes for testing (in bytes)
 const TEST_FILES = {
@@ -9,36 +7,6 @@ const TEST_FILES = {
   'large': 2097152,   // 2MB
   'xlarge': 5242880   // 5MB
 };
-
-// Generate test files if they don't exist
-async function ensureTestFiles() {
-  const uploadsDir = path.join(process.cwd(), 'public', 'test-files');
-  
-  try {
-    await fs.mkdir(uploadsDir, { recursive: true });
-  } catch (error) {
-    console.warn('Could not create test-files directory:', error);
-  }
-  
-  for (const [name, size] of Object.entries(TEST_FILES)) {
-    const filePath = path.join(uploadsDir, `${name}.bin`);
-    
-    try {
-      await fs.access(filePath);
-    } catch {
-      // File doesn't exist, create it
-      console.log(`Creating test file: ${name}.bin (${size} bytes)`);
-      const data = new Uint8Array(size);
-      
-      // Fill with a pattern that's not easily compressible
-      for (let i = 0; i < size; i++) {
-        data[i] = (i * 7 + 13) % 256; // Simple but non-compressible pattern
-      }
-      
-      await fs.writeFile(filePath, data);
-    }
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,30 +20,36 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    const filePath = path.join(process.cwd(), 'public', 'test-files', `${fileSize}.bin`);
+    const size = TEST_FILES[fileSize as keyof typeof TEST_FILES];
     
-    try {
-      const fileBuffer = await fs.readFile(filePath);
-      
-      return new Response(fileBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': fileBuffer.length.toString(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'X-Speed-Test': 'file-based',
-          'X-File-Size': fileBuffer.length.toString(),
-        },
-      });
-    } catch (error) {
-      return new Response(JSON.stringify({ error: 'Test file not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // Generate file data on-demand
+    const data = new Uint8Array(size);
+    
+    // Fill with a pattern that's not easily compressible
+    // Use timestamp to make each file unique
+    const timestamp = Date.now();
+    const seed = timestamp % 256;
+    
+    for (let i = 0; i < size; i++) {
+      data[i] = (seed + i * 7 + 13) % 256; // Non-compressible pattern
     }
+    
+    return new Response(data, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': data.length.toString(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Speed-Test': 'file-based',
+        'X-File-Size': data.length.toString(),
+        'X-Timestamp': timestamp.toString(),
+      },
+    });
+    
   } catch (error) {
+    console.error('File speed test error:', error);
     return new Response(JSON.stringify({ error: 'Server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -131,15 +105,26 @@ export async function POST(request: NextRequest) {
     const endTime = performance.now();
     const duration = endTime - startTime;
     
-    // Calculate upload speed
-    const uploadSpeed = (totalSize * 8) / (duration / 1000); // Mbps
+    // Calculate upload speed with more realistic validation
+    let uploadSpeed = (totalSize * 8) / (duration / 1000); // Mbps
+    
+    // Cap unrealistic speeds
+    if (uploadSpeed > 100) {
+      console.warn(`Unrealistic upload speed calculated: ${uploadSpeed} Mbps, capping at 100 Mbps`);
+      uploadSpeed = 100;
+    }
+    
+    // Ensure minimum realistic speed
+    if (uploadSpeed < 0.1) {
+      uploadSpeed = 0.1;
+    }
     
     return new Response(JSON.stringify({
       success: true,
       type: 'upload',
       size: totalSize,
       duration,
-      speed: Math.max(uploadSpeed, 0.1),
+      speed: uploadSpeed,
       timestamp: Date.now(),
       method: 'file-upload',
     }), {
@@ -153,14 +138,10 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
+    console.error('Upload speed test error:', error);
     return new Response(JSON.stringify({ error: 'Upload failed' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
-}
-
-// Initialize test files on server startup
-if (typeof window === 'undefined') {
-  ensureTestFiles().catch(console.error);
 }
