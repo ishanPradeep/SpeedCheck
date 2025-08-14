@@ -532,34 +532,27 @@ export function useSpeedTest() {
   };
 
   const measureRealDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    const fileSizes = [524288, 1048576, 2097152, 5242880]; // 0.5MB, 1MB, 2MB, 5MB
+    const fileSizes = ['small', 'medium', 'large', 'xlarge']; // Use file names instead of sizes
     const speeds: number[] = [];
     
     for (let i = 0; i < fileSizes.length; i++) {
-      const size = fileSizes[i];
+      const fileSize = fileSizes[i];
       
       try {
         const startTime = performance.now();
         
-        // Add cache-busting timestamp to ensure fresh data
+        // Download actual file from server
         const timestamp = Date.now();
         const cacheBuster = Math.random().toString(36).substring(7);
         
-        const response = await fetch(`/api/real-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
-          method: 'POST',
+        const response = await fetch(`/api/file-speed-test?size=${fileSize}&t=${timestamp}&cb=${cacheBuster}`, {
+          method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
             'Pragma': 'no-cache',
             'Expires': '0',
             'X-Request-ID': `${timestamp}-${cacheBuster}`,
           },
-          body: JSON.stringify({
-            type: 'download',
-            size: size,
-            timestamp: timestamp,
-            cacheBuster: cacheBuster
-          }),
           signal: AbortSignal.timeout(30000) // 30 second timeout
         });
         
@@ -572,18 +565,18 @@ export function useSpeedTest() {
           const actualSpeed = (data.byteLength * 8) / (duration / 1000); // Mbps
           
           // Add detailed logging for debugging
-          console.log(`Download test ${i + 1}:`, {
-            size: size,
+          console.log(`File download test ${i + 1}:`, {
+            fileSize: fileSize,
             dataSize: data.byteLength,
             duration: duration,
             calculatedSpeed: actualSpeed,
             timestamp: new Date().toISOString()
           });
           
-          // More aggressive validation - cap at realistic speeds
+          // Validate speed - cap at realistic speeds
           let validatedSpeed = actualSpeed;
           
-          // Cap at 100 Mbps for most realistic results (adjust based on your actual connection)
+          // Cap at 100 Mbps for realistic results
           if (actualSpeed > 100) {
             console.warn(`Unrealistic download speed detected: ${actualSpeed} Mbps, capping at 100 Mbps`);
             validatedSpeed = 100;
@@ -600,16 +593,16 @@ export function useSpeedTest() {
           // Update progress
           onProgress(((i + 1) / fileSizes.length) * 100);
         } else {
-          console.warn(`Download test failed for size ${size}: ${response.status}`);
+          console.warn(`File download test failed for size ${fileSize}: ${response.status}`);
         }
       } catch (error) {
-        console.error(`Download test failed for size ${size}:`, error);
+        console.error(`File download test failed for size ${fileSize}:`, error);
         // Continue with next size
       }
     }
     
     if (speeds.length === 0) {
-      console.warn('All download tests failed, falling back to estimation');
+      console.warn('All file download tests failed, falling back to estimation');
       return await estimateDownloadSpeed();
     }
     
@@ -662,10 +655,10 @@ export function useSpeedTest() {
         
         const startTime = performance.now();
         
-        // Add cache-busting parameters
+        // Upload to file-based API
         const cacheBuster = Math.random().toString(36).substring(7);
         
-        const response = await fetch(`/api/real-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
+        const response = await fetch(`/api/file-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/octet-stream',
@@ -688,7 +681,7 @@ export function useSpeedTest() {
           const actualSpeed = result.speed || (data.length * 8) / (duration / 1000);
           
           // Add detailed logging for debugging
-          console.log(`Upload test ${i + 1}:`, {
+          console.log(`File upload test ${i + 1}:`, {
             size: size,
             dataSize: data.length,
             duration: duration,
@@ -697,7 +690,7 @@ export function useSpeedTest() {
             timestamp: new Date().toISOString()
           });
           
-          // More aggressive validation - cap at realistic speeds
+          // Validate speed - cap at realistic speeds
           let validatedSpeed = actualSpeed;
           
           // Cap at 50 Mbps for upload (typically lower than download)
@@ -717,16 +710,16 @@ export function useSpeedTest() {
           // Update progress
           onProgress(((i + 1) / fileSizes.length) * 100);
         } else {
-          console.warn(`Upload test failed for size ${size}: ${response.status}`);
+          console.warn(`File upload test failed for size ${size}: ${response.status}`);
         }
       } catch (error) {
-        console.error(`Upload test failed for size ${size}:`, error);
+        console.error(`File upload test failed for size ${size}:`, error);
         // Continue with next size
       }
     }
     
     if (speeds.length === 0) {
-      console.warn('All upload tests failed, falling back to estimation');
+      console.warn('All file upload tests failed, falling back to estimation');
       return await estimateUploadSpeed();
     }
     
