@@ -104,25 +104,34 @@ export default function DebugSpeedTestPage() {
         'https://www.speedtest.net'
       ];
       
-      for (const server of servers) {
-        try {
-          const startTime = performance.now();
-          const response = await fetch(server, {
-            method: 'HEAD',
-            cache: 'no-cache',
-            signal: AbortSignal.timeout(3000),
-          });
+      addLog('📡 Using server-side ping API to avoid CORS issues...');
+      
+      const response = await fetch('/api/ping-external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ servers }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.success) {
+          addLog(`✅ Best ping: ${data.bestPing}ms (${data.bestServer})`);
           
-          if (response.ok) {
-            const endTime = performance.now();
-            const ping = endTime - startTime;
-            addLog(`✅ ${server}: ${ping.toFixed(1)}ms`);
-          } else {
-            addLog(`❌ ${server}: HTTP ${response.status}`);
+          for (const result of data.results) {
+            if (result.success) {
+              addLog(`✅ ${result.server}: ${result.ping}ms`);
+            } else {
+              addLog(`❌ ${result.server}: Failed (${result.error})`);
+            }
           }
-        } catch (error) {
-          addLog(`❌ ${server}: Failed`);
+        } else {
+          addLog(`❌ Ping API failed: ${data.error}`);
         }
+      } else {
+        addLog(`❌ Ping API failed: HTTP ${response.status}`);
       }
       
     } catch (error) {
@@ -236,6 +245,13 @@ export default function DebugSpeedTestPage() {
               <Info className="h-4 w-4" />
               <AlertDescription>
                 <strong>Progress Tracking:</strong> Fixed progress calculation in both download and upload tests.
+              </AlertDescription>
+            </Alert>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>CORS Issues:</strong> Fixed by creating server-side ping API to avoid client-side CORS restrictions.
               </AlertDescription>
             </Alert>
           </div>

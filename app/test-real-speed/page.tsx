@@ -84,34 +84,31 @@ export default function TestRealSpeedPage() {
       'https://www.speedtest.net',
     ];
     
-    const pings: number[] = [];
-    
-    for (const server of servers) {
-      try {
-        const startTime = performance.now();
-        const response = await fetch(server, {
-          method: 'HEAD',
-          cache: 'no-cache',
-          signal: AbortSignal.timeout(3000),
-        });
+    try {
+      // Use server-side ping API to avoid CORS issues
+      const response = await fetch('/api/ping-external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ servers }),
+        signal: AbortSignal.timeout(10000),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
         
-        if (response.ok) {
-          const endTime = performance.now();
-          const ping = endTime - startTime;
-          if (ping >= 1 && ping <= 1000) {
-            pings.push(ping);
-          }
+        if (data.success && data.bestPing) {
+          return data.bestPing;
+        } else {
+          throw new Error('Ping API failed');
         }
-      } catch (error) {
-        // Continue with next server
+      } else {
+        throw new Error('Ping API failed');
       }
-    }
-    
-    if (pings.length === 0) {
+    } catch (error) {
       throw new Error('Ping test failed');
     }
-    
-    return Math.min(...pings);
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {

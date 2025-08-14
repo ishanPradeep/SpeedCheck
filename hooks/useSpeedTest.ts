@@ -397,49 +397,36 @@ export function useSpeedTest() {
       'https://www.netflix.com'
     ];
     
-    const pings: number[] = [];
-    
-    // Test each external server
-    for (const server of externalServers) {
-      try {
-        const startTime = performance.now();
+    try {
+      // Use server-side ping API to avoid CORS issues
+      const response = await fetch('/api/ping-external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+        body: JSON.stringify({ servers: externalServers }),
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
         
-        const response = await fetch(server, {
-          method: 'HEAD',
-          cache: 'no-cache',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          },
-          signal: AbortSignal.timeout(3000) // 3 second timeout
-        });
-        
-        if (response.ok) {
-          const endTime = performance.now();
-          const pingTime = endTime - startTime;
-          
-          if (pingTime >= 1 && pingTime <= 1000) {
-            pings.push(pingTime);
-
-          }
+        if (data.success && data.bestPing) {
+          console.log('External ping results:', data.results);
+          return data.bestPing;
+        } else {
+          console.warn('External ping API failed, falling back to local ping');
+          return await measureLocalPing();
         }
-      } catch (error) {
-
+      } else {
+        console.warn('External ping API failed, falling back to local ping');
+        return await measureLocalPing();
       }
-    }
-    
-    if (pings.length === 0) {
-      console.warn('All external ping tests failed, falling back to local ping');
+    } catch (error) {
+      console.warn('External ping API failed, falling back to local ping:', error);
       return await measureLocalPing();
     }
-    
-    // Use the minimum external ping
-    const minPing = Math.min(...pings);
-    const avgPing = pings.reduce((a, b) => a + b, 0) / pings.length;
-    
-
-    
-    return Math.max(minPing, 1); // Minimum 1ms ping
   };
 
   const measureJitter = async (): Promise<number> => {
