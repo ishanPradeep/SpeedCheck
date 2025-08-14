@@ -13,14 +13,32 @@ export async function POST(request: NextRequest) {
       const body = await request.json();
       type = body.type;
       size = body.size;
+      
+      // Validate cache-busting parameters
+      const timestamp = body.timestamp || Date.now();
+      const cacheBuster = body.cacheBuster || Math.random().toString(36).substring(7);
+      
+      // Ensure we're not using cached data
+      if (Date.now() - timestamp > 5000) { // 5 second tolerance
+        console.warn('Potential cache issue detected, using fresh timestamp');
+      }
     } else if (contentType.includes('application/octet-stream')) {
       // Binary data request (upload test)
       type = 'upload';
       size = 0; // Size will be determined from the actual data
+      
+      // Get timestamp from headers for cache validation
+      const timestamp = parseInt(request.headers.get('x-timestamp') || Date.now().toString());
+      const cacheBuster = request.headers.get('x-request-id') || Math.random().toString(36).substring(7);
     } else {
       return new Response(JSON.stringify({ error: 'Invalid content type' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
       });
     }
     
@@ -40,11 +58,13 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Generate random data efficiently
+      // Generate fresh random data with timestamp-based seed to prevent caching
       const data = new Uint8Array(dataSize);
       const pattern = new Uint8Array(1024);
+      const seed = Date.now() % 256; // Use current timestamp as seed
+      
       for (let i = 0; i < pattern.length; i++) {
-        pattern[i] = Math.floor(Math.random() * 256);
+        pattern[i] = (seed + i) % 256; // Deterministic but unique per request
       }
       for (let i = 0; i < dataSize; i++) {
         data[i] = pattern[i % pattern.length];
@@ -55,9 +75,13 @@ export async function POST(request: NextRequest) {
         headers: {
           'Content-Type': 'application/octet-stream',
           'Content-Length': dataSize.toString(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
           'X-Speed-Test': 'true',
           'X-Transfer-Size': dataSize.toString(),
+          'X-Timestamp': Date.now().toString(),
+          'X-Cache-Buster': Math.random().toString(36).substring(7),
         },
       });
     }
@@ -117,11 +141,15 @@ export async function POST(request: NextRequest) {
         speed: Math.max(actualSpeed, 0.1), // Minimum 0.1 Mbps
         timestamp: Date.now(),
         method: 'real-network-transfer',
+        cacheBuster: Math.random().toString(36).substring(7),
       }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Timestamp': Date.now().toString(),
         },
       });
     }

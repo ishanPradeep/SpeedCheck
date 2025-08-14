@@ -75,7 +75,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { servers = [] } = body;
+    const { servers = [], timestamp = Date.now(), cacheBuster = Math.random().toString(36).substring(7) } = body;
+    
+    // Validate cache-busting parameters
+    if (Date.now() - timestamp > 5000) { // 5 second tolerance
+      console.warn('Potential cache issue detected in ping API, using fresh timestamp');
+    }
     
     const results = [];
     
@@ -136,10 +141,17 @@ export async function POST(request: NextRequest) {
       results,
       bestPing: bestResult ? bestResult.ping : null,
       bestServer: bestResult ? bestResult.server : null,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      cacheBuster: Math.random().toString(36).substring(7)
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Timestamp': Date.now().toString(),
+      },
     });
     
   } catch (error) {

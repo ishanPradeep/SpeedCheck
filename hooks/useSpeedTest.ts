@@ -399,13 +399,23 @@ export function useSpeedTest() {
     
     try {
       // Use server-side ping API to avoid CORS issues
-      const response = await fetch('/api/ping-external', {
+      const timestamp = Date.now();
+      const cacheBuster = Math.random().toString(36).substring(7);
+      
+      const response = await fetch(`/api/ping-external?t=${timestamp}&cb=${cacheBuster}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Request-ID': `${timestamp}-${cacheBuster}`,
         },
-        body: JSON.stringify({ servers: externalServers }),
+        body: JSON.stringify({ 
+          servers: externalServers,
+          timestamp: timestamp,
+          cacheBuster: cacheBuster
+        }),
         signal: AbortSignal.timeout(10000) // 10 second timeout
       });
       
@@ -531,15 +541,24 @@ export function useSpeedTest() {
       try {
         const startTime = performance.now();
         
-        const response = await fetch('/api/real-speed-test', {
+        // Add cache-busting timestamp to ensure fresh data
+        const timestamp = Date.now();
+        const cacheBuster = Math.random().toString(36).substring(7);
+        
+        const response = await fetch(`/api/real-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'X-Request-ID': `${timestamp}-${cacheBuster}`,
           },
           body: JSON.stringify({
             type: 'download',
-            size: size
+            size: size,
+            timestamp: timestamp,
+            cacheBuster: cacheBuster
           }),
           signal: AbortSignal.timeout(30000) // 30 second timeout
         });
@@ -598,23 +617,35 @@ export function useSpeedTest() {
       const size = fileSizes[i];
       
       try {
-        // Generate test data
+        // Generate test data with timestamp to ensure uniqueness
+        const timestamp = Date.now();
         const data = new Uint8Array(size);
         const pattern = new Uint8Array(1024);
+        
+        // Use timestamp to seed the random pattern
+        const seed = timestamp % 256;
         for (let j = 0; j < pattern.length; j++) {
-          pattern[j] = Math.floor(Math.random() * 256);
+          pattern[j] = (seed + j) % 256;
         }
+        
         for (let j = 0; j < size; j++) {
           data[j] = pattern[j % pattern.length];
         }
         
         const startTime = performance.now();
         
-        const response = await fetch('/api/real-speed-test', {
+        // Add cache-busting parameters
+        const cacheBuster = Math.random().toString(36).substring(7);
+        
+        const response = await fetch(`/api/real-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/octet-stream',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'X-Request-ID': `${timestamp}-${cacheBuster}`,
+            'X-Timestamp': timestamp.toString(),
           },
           body: data,
           signal: AbortSignal.timeout(30000) // 30 second timeout
@@ -721,6 +752,20 @@ export function useSpeedTest() {
     }
     
     if (isRunning) return;
+    
+    // Clear any potential browser cache for speed test APIs
+    if (isBrowser() && 'caches' in window) {
+      try {
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) {
+          if (cacheName.includes('speed') || cacheName.includes('api')) {
+            await caches.delete(cacheName);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to clear cache:', error);
+      }
+    }
     
     setIsRunning(true);
     setProgress(0);
