@@ -580,44 +580,141 @@ export function useSpeedTest() {
       throw new Error('Cannot run speed test during static generation');
     }
     
-
-    
-    // Use external speed test services for more accurate results
-    return await measureExternalDownloadSpeed(onProgress);
+    // Use real file transfer for accurate download speed measurement
+    return await measureRealDownloadSpeed(onProgress);
   };
 
-  const measureExternalDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-
+  const measureRealDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
+    const fileSizes = [524288, 1048576, 2097152, 5242880]; // 0.5MB, 1MB, 2MB, 5MB
+    const speeds: number[] = [];
     
-    try {
-      // Simulate progress
-      for (let i = 0; i <= 100; i += 10) {
-        onProgress(i);
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+    for (let i = 0; i < fileSizes.length; i++) {
+      const size = fileSizes[i];
+      const progressStart = (i / fileSizes.length) * 100;
+      const progressEnd = ((i + 1) / fileSizes.length) * 100;
       
-      const response = await fetch('/api/external-speed-test?type=download', {
-        method: 'GET',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        signal: AbortSignal.timeout(15000) // 15 second timeout
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-
-        return data.result;
-      } else {
-        console.warn('External download API failed, falling back to estimation');
-        return await estimateDownloadSpeed();
+      try {
+        const startTime = performance.now();
+        
+        const response = await fetch('/api/real-speed-test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
+          body: JSON.stringify({
+            type: 'download',
+            size: size
+          }),
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+        
+        if (response.ok) {
+          const data = await response.arrayBuffer();
+          const endTime = performance.now();
+          const duration = endTime - startTime;
+          
+          // Calculate actual download speed
+          const actualSpeed = (data.byteLength * 8) / (duration / 1000); // Mbps
+          speeds.push(actualSpeed);
+          
+          // Update progress
+          onProgress(progressEnd);
+        } else {
+          console.warn(`Download test failed for size ${size}: ${response.status}`);
+        }
+      } catch (error) {
+        console.error(`Download test failed for size ${size}:`, error);
+        // Continue with next size
       }
-    } catch (error) {
-      console.warn('External download API failed, falling back to estimation');
+    }
+    
+    if (speeds.length === 0) {
+      console.warn('All download tests failed, falling back to estimation');
       return await estimateDownloadSpeed();
     }
+    
+    // Return the average of successful tests, weighted towards larger files
+    const weightedSum = speeds.reduce((sum, speed, index) => sum + speed * (index + 1), 0);
+    const weightSum = speeds.reduce((sum, _, index) => sum + (index + 1), 0);
+    const averageSpeed = weightedSum / weightSum;
+    
+    return Math.max(averageSpeed, 0.1); // Minimum 0.1 Mbps
+  };
+
+  const measureUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
+    // Prevent API calls during static generation
+    if (isStaticGeneration()) {
+      throw new Error('Cannot run speed test during static generation');
+    }
+    
+    // Use real file transfer for accurate upload speed measurement
+    return await measureRealUploadSpeed(onProgress);
+  };
+
+  const measureRealUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
+    const fileSizes = [262144, 524288, 1048576, 2097152]; // 0.25MB, 0.5MB, 1MB, 2MB
+    const speeds: number[] = [];
+    
+    for (let i = 0; i < fileSizes.length; i++) {
+      const size = fileSizes[i];
+      const progressStart = (i / fileSizes.length) * 100;
+      const progressEnd = ((i + 1) / fileSizes.length) * 100;
+      
+      try {
+        // Generate test data
+        const data = new Uint8Array(size);
+        const pattern = new Uint8Array(1024);
+        for (let j = 0; j < pattern.length; j++) {
+          pattern[j] = Math.floor(Math.random() * 256);
+        }
+        for (let j = 0; j < size; j++) {
+          data[j] = pattern[j % pattern.length];
+        }
+        
+        const startTime = performance.now();
+        
+        const response = await fetch('/api/real-speed-test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
+          body: data,
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const endTime = performance.now();
+          const duration = endTime - startTime;
+          
+          // Use server-calculated speed or calculate locally
+          const actualSpeed = result.speed || (data.length * 8) / (duration / 1000);
+          speeds.push(actualSpeed);
+          
+          // Update progress
+          onProgress(progressEnd);
+        } else {
+          console.warn(`Upload test failed for size ${size}: ${response.status}`);
+        }
+      } catch (error) {
+        console.error(`Upload test failed for size ${size}:`, error);
+        // Continue with next size
+      }
+    }
+    
+    if (speeds.length === 0) {
+      console.warn('All upload tests failed, falling back to estimation');
+      return await estimateUploadSpeed();
+    }
+    
+    // Return the average of successful tests, weighted towards larger files
+    const weightedSum = speeds.reduce((sum, speed, index) => sum + speed * (index + 1), 0);
+    const weightSum = speeds.reduce((sum, _, index) => sum + (index + 1), 0);
+    const averageSpeed = weightedSum / weightSum;
+    
+    return Math.max(averageSpeed, 0.1); // Minimum 0.1 Mbps
   };
 
   const estimateDownloadSpeed = async (): Promise<number> => {
@@ -631,52 +728,6 @@ export function useSpeedTest() {
     
 
     return estimatedSpeed;
-  };
-
-  const measureUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    // Prevent API calls during static generation
-    if (isStaticGeneration()) {
-      throw new Error('Cannot run speed test during static generation');
-    }
-    
-
-    
-    // Use external speed test services for more accurate results
-    return await measureExternalUploadSpeed(onProgress);
-  };
-
-  const measureExternalUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-
-    
-    try {
-      // Simulate progress
-      for (let i = 0; i <= 100; i += 10) {
-        onProgress(i);
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      const response = await fetch('/api/external-speed-test?type=upload', {
-        method: 'GET',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        signal: AbortSignal.timeout(12000) // 12 second timeout
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-
-        return data.result;
-      } else {
-        console.warn('External upload API failed, falling back to estimation');
-        return await estimateUploadSpeed();
-      }
-    } catch (error) {
-      console.warn('External upload API failed, falling back to estimation');
-      return await estimateUploadSpeed();
-    }
   };
 
   const estimateUploadSpeed = async (): Promise<number> => {

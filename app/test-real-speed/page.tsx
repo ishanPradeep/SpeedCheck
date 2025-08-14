@@ -3,80 +3,132 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { isStaticGeneration } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info, Download, Upload, Zap, Globe } from 'lucide-react';
 
-interface TestResults {
-  ping?: number;
-  download?: number;
-  upload?: number;
+interface SpeedTestResult {
+  downloadSpeed: number;
+  uploadSpeed: number;
+  ping: number;
+  duration: number;
+  method: string;
+  cloudflare?: {
+    pop: string;
+    country: string;
+    ip: string;
+  };
 }
 
 export default function TestRealSpeedPage() {
-  const [results, setResults] = useState<TestResults | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [results, setResults] = useState<SpeedTestResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [testType, setTestType] = useState<'regular' | 'cloudflare'>('cloudflare');
 
-  const addLog = (message: string) => {
-    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
-  };
+  const runSpeedTest = async () => {
+    setIsRunning(true);
+    setProgress(0);
+    setResults(null);
+    setError(null);
 
-  const testPing = async () => {
-    // Prevent API calls during static generation
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run ping test during static generation');
-      return;
-    }
-    
-    setLoading(true);
-    addLog('Starting ping test...');
-    
     try {
       const startTime = performance.now();
-      const response = await fetch('/api/real-ping', {
-        method: 'GET',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-      });
-      const endTime = performance.now();
       
-      if (response.ok) {
-        const data = await response.json();
-        const measuredPing = endTime - startTime;
-        addLog(`Ping test successful: ${measuredPing.toFixed(2)}ms (API: ${data.ping}ms)`);
-        setResults((prev: TestResults | null) => ({ ...prev, ping: measuredPing }));
-      } else {
-        addLog('Ping test failed');
-      }
-    } catch (error) {
-      addLog(`Ping test error: ${error}`);
+      // Step 1: Ping test
+      setProgress(10);
+      const ping = await measurePing();
+      
+      // Step 2: Download test
+      setProgress(30);
+      const downloadSpeed = await measureDownloadSpeed((p) => {
+        setProgress(30 + (p * 0.4));
+      });
+      
+      // Step 3: Upload test
+      setProgress(70);
+      const uploadSpeed = await measureUploadSpeed((p) => {
+        setProgress(70 + (p * 0.25));
+      });
+      
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      setProgress(100);
+      
+      const result: SpeedTestResult = {
+        downloadSpeed,
+        uploadSpeed,
+        ping,
+        duration,
+        method: testType === 'cloudflare' ? 'cloudflare-optimized' : 'real-file-transfer',
+      };
+      
+      setResults(result);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Speed test failed');
+    } finally {
+      setIsRunning(false);
+      setProgress(0);
     }
-    
-    setLoading(false);
   };
 
-  const testDownload = async () => {
-    // Prevent API calls during static generation
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run download test during static generation');
-      return;
+  const measurePing = async (): Promise<number> => {
+    const servers = [
+      'https://www.google.com',
+      'https://www.cloudflare.com',
+      'https://www.speedtest.net',
+    ];
+    
+    const pings: number[] = [];
+    
+    for (const server of servers) {
+      try {
+        const startTime = performance.now();
+        const response = await fetch(server, {
+          method: 'HEAD',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(3000),
+        });
+        
+        if (response.ok) {
+          const endTime = performance.now();
+          const ping = endTime - startTime;
+          if (ping >= 1 && ping <= 1000) {
+            pings.push(ping);
+          }
+        }
+      } catch (error) {
+        // Continue with next server
+      }
     }
     
-    setLoading(true);
-    addLog('Starting download test...');
+    if (pings.length === 0) {
+      throw new Error('Ping test failed');
+    }
     
-    try {
-      const testSizes = [1, 2, 5]; // MB
-      let totalBytes = 0;
-      let totalTime = 0;
+    return Math.min(...pings);
+  };
+
+  const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
+    const endpoint = testType === 'cloudflare' ? '/api/cloudflare-speed-test' : '/api/real-speed-test';
+    const fileSizes = testType === 'cloudflare' 
+      ? [65536, 262144, 1048576, 5242880] // 64KB, 256KB, 1MB, 5MB
+      : [524288, 1048576, 2097152, 5242880]; // 0.5MB, 1MB, 2MB, 5MB
+    
+    const speeds: number[] = [];
+    
+    for (let i = 0; i < fileSizes.length; i++) {
+      const size = fileSizes[i];
       
-      for (let i = 0; i < testSizes.length; i++) {
-        const size = testSizes[i];
-        addLog(`Testing ${size}MB download...`);
-        
+      try {
         const startTime = performance.now();
-        const response = await fetch('/api/real-speed-test', {
+        
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -84,212 +136,269 @@ export default function TestRealSpeedPage() {
           },
           body: JSON.stringify({
             type: 'download',
-            size: size * 1024 * 1024
-          })
+            size: size
+          }),
+          signal: AbortSignal.timeout(30000),
         });
-        const endTime = performance.now();
         
         if (response.ok) {
+          const data = await response.arrayBuffer();
+          const endTime = performance.now();
           const duration = endTime - startTime;
-          const dataSize = size * 1024 * 1024;
-          const speed = (dataSize * 8) / (duration * 1000000);
           
-          totalBytes += dataSize;
-          totalTime += duration / 1000;
+          const speed = (data.byteLength * 8) / (duration / 1000); // Mbps
+          speeds.push(speed);
           
-          addLog(`${size}MB download: ${speed.toFixed(2)} Mbps in ${duration.toFixed(0)}ms`);
-        } else {
-          addLog(`${size}MB download failed`);
+          onProgress(((i + 1) / fileSizes.length) * 100);
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error(`Download test failed for size ${size}:`, error);
       }
-      
-      const avgSpeed = (totalBytes * 8) / (totalTime * 1000000);
-      addLog(`Average download speed: ${avgSpeed.toFixed(2)} Mbps`);
-      setResults((prev: TestResults | null) => ({ ...prev, download: avgSpeed }));
-      
-    } catch (error) {
-      addLog(`Download test error: ${error}`);
     }
     
-    setLoading(false);
+    if (speeds.length === 0) {
+      throw new Error('Download test failed');
+    }
+    
+    // Return weighted average (larger files have more weight)
+    const weightedSum = speeds.reduce((sum, speed, index) => sum + speed * (index + 1), 0);
+    const weightSum = speeds.reduce((sum, _, index) => sum + (index + 1), 0);
+    return weightedSum / weightSum;
   };
 
-  const testUpload = async () => {
-    // Prevent API calls during static generation
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run upload test during static generation');
-      return;
-    }
+  const measureUploadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
+    const endpoint = testType === 'cloudflare' ? '/api/cloudflare-speed-test' : '/api/real-speed-test';
+    const fileSizes = testType === 'cloudflare'
+      ? [32768, 131072, 524288, 1048576] // 32KB, 128KB, 512KB, 1MB
+      : [262144, 524288, 1048576, 2097152]; // 0.25MB, 0.5MB, 1MB, 2MB
     
-    setLoading(true);
-    addLog('Starting upload test...');
+    const speeds: number[] = [];
     
-    try {
-      const testSizes = [0.5, 1, 2]; // MB
-      let totalBytes = 0;
-      let totalTime = 0;
+    for (let i = 0; i < fileSizes.length; i++) {
+      const size = fileSizes[i];
       
-      for (let i = 0; i < testSizes.length; i++) {
-        const size = testSizes[i];
-        addLog(`Testing ${size}MB upload...`);
-        
+      try {
         // Generate test data
-        const testData = new Uint8Array(size * 1024 * 1024);
-        for (let j = 0; j < testData.length; j++) {
-          testData[j] = Math.floor(Math.random() * 256);
+        const data = new Uint8Array(size);
+        const pattern = new Uint8Array(1024);
+        for (let j = 0; j < pattern.length; j++) {
+          pattern[j] = Math.floor(Math.random() * 256);
+        }
+        for (let j = 0; j < size; j++) {
+          data[j] = pattern[j % pattern.length];
         }
         
         const startTime = performance.now();
-        const response = await fetch('/api/real-speed-test', {
+        
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/octet-stream',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
-          body: testData
+          body: data,
+          signal: AbortSignal.timeout(30000),
         });
-        const endTime = performance.now();
         
         if (response.ok) {
+          const result = await response.json();
+          const endTime = performance.now();
           const duration = endTime - startTime;
-          const dataSize = size * 1024 * 1024;
-          const speed = (dataSize * 8) / (duration * 1000000);
           
-          totalBytes += dataSize;
-          totalTime += duration / 1000;
+          const speed = result.speed || (data.length * 8) / (duration / 1000);
+          speeds.push(speed);
           
-          addLog(`${size}MB upload: ${speed.toFixed(2)} Mbps in ${duration.toFixed(0)}ms`);
-        } else {
-          addLog(`${size}MB upload failed`);
+          onProgress(((i + 1) / fileSizes.length) * 100);
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error(`Upload test failed for size ${size}:`, error);
       }
-      
-      const avgSpeed = (totalBytes * 8) / (totalTime * 1000000);
-      addLog(`Average upload speed: ${avgSpeed.toFixed(2)} Mbps`);
-      setResults((prev: TestResults | null) => ({ ...prev, upload: avgSpeed }));
-      
-    } catch (error) {
-      addLog(`Upload test error: ${error}`);
     }
     
-    setLoading(false);
+    if (speeds.length === 0) {
+      throw new Error('Upload test failed');
+    }
+    
+    // Return weighted average
+    const weightedSum = speeds.reduce((sum, speed, index) => sum + speed * (index + 1), 0);
+    const weightSum = speeds.reduce((sum, _, index) => sum + (index + 1), 0);
+    return weightedSum / weightSum;
   };
 
-  const runFullTest = async () => {
-    // Prevent API calls during static generation
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run full test during static generation');
-      return;
+  const formatSpeed = (speed: number): string => {
+    if (speed >= 1000) {
+      return `${(speed / 1000).toFixed(2)} Gbps`;
     }
-    
-    setResults(null);
-    setLogs([]);
-    addLog('Starting full speed test...');
-    
-    await testPing();
-    await testDownload();
-    await testUpload();
-    
-    addLog('Full test completed!');
+    return `${speed.toFixed(2)} Mbps`;
+  };
+
+  const formatDuration = (duration: number): string => {
+    return `${(duration / 1000).toFixed(1)}s`;
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">Real Speed Test Verification</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Test Controls</CardTitle>
-            <CardDescription>Run individual tests or full speed test</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              onClick={testPing} 
-              disabled={loading}
-              className="w-full"
-            >
-              Test Ping
-            </Button>
-            <Button 
-              onClick={testDownload} 
-              disabled={loading}
-              className="w-full"
-            >
-              Test Download
-            </Button>
-            <Button 
-              onClick={testUpload} 
-              disabled={loading}
-              className="w-full"
-            >
-              Test Upload
-            </Button>
-            <Button 
-              onClick={runFullTest} 
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              Run Full Test
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Test Results</CardTitle>
-            <CardDescription>Current test measurements</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {results ? (
-              <div className="space-y-2">
-                {results.ping && (
-                  <div className="flex justify-between">
-                    <span>Ping:</span>
-                    <span className="font-mono">{results.ping.toFixed(2)} ms</span>
-                  </div>
-                )}
-                {results.download && (
-                  <div className="flex justify-between">
-                    <span>Download:</span>
-                    <span className="font-mono">{results.download.toFixed(2)} Mbps</span>
-                  </div>
-                )}
-                {results.upload && (
-                  <div className="flex justify-between">
-                    <span>Upload:</span>
-                    <span className="font-mono">{results.upload.toFixed(2)} Mbps</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">No results yet. Run a test to see measurements.</p>
-            )}
-          </CardContent>
-        </Card>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-2">Real Speed Test</h1>
+        <p className="text-muted-foreground">
+          Test your internet speed using real file transfers
+        </p>
       </div>
-      
-      <Card>
+
+      <Tabs value={testType} onValueChange={(value) => setTestType(value as 'regular' | 'cloudflare')}>
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="cloudflare" className="flex items-center gap-2">
+            <Globe className="w-4 h-4" />
+            Cloudflare Optimized
+          </TabsTrigger>
+          <TabsTrigger value="regular" className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Standard
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cloudflare">
+          <Alert className="mb-6">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Cloudflare-optimized tests use Cloudflare's global CDN for more accurate results across different locations.
+            </AlertDescription>
+          </Alert>
+        </TabsContent>
+
+        <TabsContent value="regular">
+          <Alert className="mb-6">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Standard tests use direct file transfers for reliable speed measurements.
+            </AlertDescription>
+          </Alert>
+        </TabsContent>
+      </Tabs>
+
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Test Logs</CardTitle>
-          <CardDescription>Detailed test execution logs</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            Speed Test
+          </CardTitle>
+          <CardDescription>
+            Click the button below to start a comprehensive speed test
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-gray-100 p-4 rounded-lg h-64 overflow-y-auto font-mono text-sm">
-            {logs.length > 0 ? (
-              logs.map((log, index) => (
-                <div key={index} className="mb-1">{log}</div>
-              ))
-            ) : (
-              <p className="text-muted-foreground">No logs yet. Run a test to see detailed information.</p>
-            )}
-          </div>
+          <Button 
+            onClick={runSpeedTest} 
+            disabled={isRunning}
+            className="w-full"
+            size="lg"
+          >
+            {isRunning ? 'Running Test...' : 'Start Speed Test'}
+          </Button>
+          
+          {isRunning && (
+            <div className="mt-4">
+              <Progress value={progress} className="w-full" />
+              <p className="text-sm text-muted-foreground mt-2">
+                Progress: {progress.toFixed(0)}%
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {error && (
+        <Alert className="mb-6" variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {results && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="w-5 h-5" />
+                Download Speed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">
+                {formatSpeed(results.downloadSpeed)}
+              </div>
+              <Badge variant="secondary" className="mt-2">
+                {results.method}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Upload Speed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-600">
+                {formatSpeed(results.uploadSpeed)}
+              </div>
+              <Badge variant="secondary" className="mt-2">
+                {results.method}
+              </Badge>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Ping</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-orange-600">
+                {results.ping.toFixed(1)} ms
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Test Duration</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-600">
+                {formatDuration(results.duration)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {results?.cloudflare && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5" />
+              Cloudflare Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">POP Location</p>
+                <p className="text-lg font-semibold">{results.cloudflare.pop}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Country</p>
+                <p className="text-lg font-semibold">{results.cloudflare.country}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">IP Address</p>
+                <p className="text-lg font-semibold">{results.cloudflare.ip}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

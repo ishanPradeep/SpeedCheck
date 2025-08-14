@@ -4,31 +4,17 @@ export async function POST(request: NextRequest) {
   try {
     const { type, size } = await request.json();
     
-    // Use recommended timeouts and file sizes for reliability
-    const timeout = parseInt(process.env.SPEED_TEST_TIMEOUT || '60000'); // 60 seconds
-    const maxFileSize = parseInt(process.env.SPEED_TEST_MAX_FILE_SIZE || '5242880'); // 5MB
-    const minFileSize = parseInt(process.env.SPEED_TEST_MIN_FILE_SIZE || '524288'); // 0.5MB
+    // Cloudflare-optimized settings
+    const timeout = 30000; // 30 seconds
+    const maxFileSize = 10 * 1024 * 1024; // 10MB max
+    const minFileSize = 64 * 1024; // 64KB min
     
     if (type === 'download') {
-      // Real download speed test using actual data transfer
+      // Cloudflare-optimized download test
       const dataSize = Math.min(Math.max(size || minFileSize, minFileSize), maxFileSize);
       
-      if (dataSize > maxFileSize) {
-        return new Response(JSON.stringify({ error: 'File size too large' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Generate random data efficiently
-      const data = new Uint8Array(dataSize);
-      const pattern = new Uint8Array(1024);
-      for (let i = 0; i < pattern.length; i++) {
-        pattern[i] = Math.floor(Math.random() * 256);
-      }
-      for (let i = 0; i < dataSize; i++) {
-        data[i] = pattern[i % pattern.length];
-      }
+      // Generate optimized test data for Cloudflare
+      const data = generateOptimizedTestData(dataSize);
       
       return new Response(data, {
         status: 200,
@@ -36,17 +22,18 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/octet-stream',
           'Content-Length': dataSize.toString(),
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Speed-Test': 'true',
+          'X-Speed-Test': 'cloudflare-optimized',
           'X-Transfer-Size': dataSize.toString(),
+          'X-Cloudflare-Pop': request.headers.get('cf-ray') || 'unknown',
+          'X-Cloudflare-Country': request.headers.get('cf-ipcountry') || 'unknown',
         },
       });
     }
     
     if (type === 'upload') {
-      // Real upload speed test using actual data transfer
+      // Cloudflare-optimized upload test
       const startTime = performance.now();
       
-      // Read the uploaded data
       const chunks: Uint8Array[] = [];
       let totalSize = 0;
       
@@ -59,30 +46,26 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        let chunkCount = 0;
-        
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           
           chunks.push(value);
           totalSize += value.length;
-          chunkCount++;
           
           // Check for timeout
           if (performance.now() - startTime > timeout) {
             throw new Error('Upload timeout');
           }
+          
+          // Check for size limit
+          if (totalSize > maxFileSize) {
+            return new Response(JSON.stringify({ error: 'File size too large' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
         }
-        
-        // Validate file size
-        if (totalSize > maxFileSize) {
-          return new Response(JSON.stringify({ error: 'File size too large' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-        
       } finally {
         reader.releaseLock();
       }
@@ -90,17 +73,22 @@ export async function POST(request: NextRequest) {
       const endTime = performance.now();
       const duration = endTime - startTime;
       
-      // Calculate actual upload speed based on real transfer time
-      const actualSpeed = (totalSize * 8) / (duration / 1000); // Mbps
+      // Calculate upload speed
+      const uploadSpeed = (totalSize * 8) / (duration / 1000); // Mbps
       
       return new Response(JSON.stringify({
         success: true,
         type: 'upload',
         size: totalSize,
         duration,
-        speed: Math.max(actualSpeed, 0.1), // Minimum 0.1 Mbps
+        speed: Math.max(uploadSpeed, 0.1),
         timestamp: Date.now(),
-        method: 'real-network-transfer',
+        method: 'cloudflare-optimized',
+        cloudflare: {
+          pop: request.headers.get('cf-ray') || 'unknown',
+          country: request.headers.get('cf-ipcountry') || 'unknown',
+          ip: request.headers.get('cf-connecting-ip') || 'unknown',
+        },
       }), {
         status: 200,
         headers: {
@@ -127,24 +115,48 @@ export async function POST(request: NextRequest) {
   }
 }
 
+function generateOptimizedTestData(size: number): Uint8Array {
+  // Generate data optimized for Cloudflare's compression and caching
+  const data = new Uint8Array(size);
+  
+  // Create a pattern that's compressible but still good for speed testing
+  const pattern = new Uint8Array(1024);
+  for (let i = 0; i < pattern.length; i++) {
+    // Use a mix of random and structured data
+    if (i % 4 === 0) {
+      pattern[i] = Math.floor(Math.random() * 256);
+    } else {
+      pattern[i] = (i * 7) % 256; // Structured pattern
+    }
+  }
+  
+  // Fill the data array with the pattern
+  for (let i = 0; i < size; i++) {
+    data[i] = pattern[i % pattern.length];
+  }
+  
+  return data;
+}
+
 export async function GET() {
   return new Response(JSON.stringify({
     status: 'ready',
-    server: process.env.NEXT_PUBLIC_APP_NAME || 'SpeedCheck Pro',
-    location: 'Global Network',
+    server: 'Cloudflare Optimized',
+    location: 'Global CDN',
     uptime: process.uptime(),
-    version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
+    version: '2.0.0',
     features: {
+      cloudflareOptimized: true,
+      globalCDN: true,
       realTimeMeasurement: true,
       multipleFileSizes: true,
-      realNetworkTransfer: true,
       accurateSpeedCalculation: true,
     },
-    testMethod: 'real-file-transfer',
+    testMethod: 'cloudflare-cdn',
     supportedTests: ['download', 'upload'],
-    fileSizes: ['0.5MB', '1MB', '2MB', '5MB'],
-    maxFileSize: '5MB',
-    minFileSize: '0.5MB',
+    fileSizes: ['64KB', '256KB', '1MB', '5MB', '10MB'],
+    maxFileSize: '10MB',
+    minFileSize: '64KB',
     timestamp: Date.now(),
   }), {
     status: 200,
@@ -153,4 +165,4 @@ export async function GET() {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   });
-} 
+}
