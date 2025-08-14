@@ -561,8 +561,8 @@ export function useSpeedTest() {
           const endTime = performance.now();
           const duration = endTime - startTime;
           
-          // Use server-calculated speed
-          const actualSpeed = result.speed || 0;
+          // Calculate speed using client-side timing for accuracy
+          const actualSpeed = (size * 8) / (duration / 1000); // Mbps
           
           // Add detailed logging for debugging
           console.log(`External download test ${i + 1}:`, {
@@ -678,8 +678,8 @@ export function useSpeedTest() {
           const endTime = performance.now();
           const duration = endTime - startTime;
           
-          // Use server-calculated speed
-          const actualSpeed = result.speed || 0;
+          // Calculate speed using client-side timing for accuracy
+          const actualSpeed = (size * 8) / (duration / 1000); // Mbps
           
           // Add detailed logging for debugging
           console.log(`External upload test ${i + 1}:`, {
