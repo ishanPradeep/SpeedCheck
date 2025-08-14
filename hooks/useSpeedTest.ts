@@ -383,31 +383,8 @@ export function useSpeedTest() {
   };
 
   const measureExternalPing = async (): Promise<number> => {
-
-    
-    try {
-      const response = await fetch('/api/external-speed-test?type=ping', {
-        method: 'GET',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        signal: AbortSignal.timeout(10000) // 10 second timeout
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-
-        return data.result;
-      } else {
-        console.warn('External ping API failed, falling back to direct testing');
-        return await measureDirectExternalPing();
-      }
-    } catch (error) {
-      console.warn('External ping API failed, falling back to direct testing');
-      return await measureDirectExternalPing();
-    }
+    // Use direct external ping measurement for better accuracy
+    return await measureDirectExternalPing();
   };
 
   const measureDirectExternalPing = async (): Promise<number> => {
@@ -543,35 +520,8 @@ export function useSpeedTest() {
   };
 
   const measureExternalJitter = async (): Promise<number> => {
-
-    
-    try {
-      // Use the same external API for jitter to avoid CORS issues
-      const response = await fetch('/api/external-speed-test?type=ping', {
-        method: 'GET',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Calculate jitter based on ping variation
-        const ping = data.result;
-        const jitter = Math.max(ping * 0.1, 1); // 10% of ping as jitter, minimum 1ms
-
-        return jitter;
-      } else {
-        console.warn('External jitter API failed, falling back to local jitter');
-        return await measureLocalJitter();
-      }
-    } catch (error) {
-      console.warn('External jitter API failed, falling back to local jitter');
-      return await measureLocalJitter();
-    }
+    // Use local jitter measurement for better accuracy
+    return await measureLocalJitter();
   };
 
   const measureDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
