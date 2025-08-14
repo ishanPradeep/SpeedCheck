@@ -2,7 +2,27 @@ import { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, size } = await request.json();
+    const contentType = request.headers.get('content-type') || '';
+    
+    // Handle different content types
+    let type: string;
+    let size: number;
+    
+    if (contentType.includes('application/json')) {
+      // JSON request (download test)
+      const body = await request.json();
+      type = body.type;
+      size = body.size;
+    } else if (contentType.includes('application/octet-stream')) {
+      // Binary data request (upload test)
+      type = 'upload';
+      size = 0; // Size will be determined from the actual data
+    } else {
+      return new Response(JSON.stringify({ error: 'Invalid content type' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     
     // Cloudflare-optimized settings
     const timeout = 30000; // 30 seconds
@@ -104,6 +124,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
+    console.error('Cloudflare speed test error:', error);
     return new Response(JSON.stringify({ 
       error: 'Test failed', 
       details: error instanceof Error ? error.message : 'Unknown error',

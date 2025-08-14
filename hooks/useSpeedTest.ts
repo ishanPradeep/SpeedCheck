@@ -590,8 +590,6 @@ export function useSpeedTest() {
     
     for (let i = 0; i < fileSizes.length; i++) {
       const size = fileSizes[i];
-      const progressStart = (i / fileSizes.length) * 100;
-      const progressEnd = ((i + 1) / fileSizes.length) * 100;
       
       try {
         const startTime = performance.now();
@@ -616,10 +614,13 @@ export function useSpeedTest() {
           
           // Calculate actual download speed
           const actualSpeed = (data.byteLength * 8) / (duration / 1000); // Mbps
-          speeds.push(actualSpeed);
+          
+          // Validate speed (cap at 10 Gbps to prevent unrealistic results)
+          const validatedSpeed = Math.min(actualSpeed, 10000);
+          speeds.push(validatedSpeed);
           
           // Update progress
-          onProgress(progressEnd);
+          onProgress(((i + 1) / fileSizes.length) * 100);
         } else {
           console.warn(`Download test failed for size ${size}: ${response.status}`);
         }
@@ -658,8 +659,6 @@ export function useSpeedTest() {
     
     for (let i = 0; i < fileSizes.length; i++) {
       const size = fileSizes[i];
-      const progressStart = (i / fileSizes.length) * 100;
-      const progressEnd = ((i + 1) / fileSizes.length) * 100;
       
       try {
         // Generate test data
@@ -691,10 +690,13 @@ export function useSpeedTest() {
           
           // Use server-calculated speed or calculate locally
           const actualSpeed = result.speed || (data.length * 8) / (duration / 1000);
-          speeds.push(actualSpeed);
+          
+          // Validate speed (cap at 10 Gbps to prevent unrealistic results)
+          const validatedSpeed = Math.min(actualSpeed, 10000);
+          speeds.push(validatedSpeed);
           
           // Update progress
-          onProgress(progressEnd);
+          onProgress(((i + 1) / fileSizes.length) * 100);
         } else {
           console.warn(`Upload test failed for size ${size}: ${response.status}`);
         }

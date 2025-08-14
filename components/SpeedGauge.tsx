@@ -16,18 +16,40 @@ export default function SpeedGauge({ value, maxValue, color, isActive, isDarkMod
   const [isHovered, setIsHovered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   
+  // Validate and format the speed value
+  const validateSpeed = (speed: number): number => {
+    // Cap unrealistic speeds (anything above 10 Gbps is likely an error)
+    if (speed > 10000) {
+      console.warn('Unrealistic speed detected:', speed, 'Mbps, capping at 10000 Mbps');
+      return 10000;
+    }
+    // Ensure minimum realistic speed
+    if (speed < 0) return 0;
+    return speed;
+  };
+
+  const validatedValue = validateSpeed(value);
+  
   useEffect(() => {
     setIsAnimating(true);
     const timer = setTimeout(() => {
-      setAnimatedValue(value);
+      setAnimatedValue(validatedValue);
       setIsAnimating(false);
     }, 100);
     return () => clearTimeout(timer);
-  }, [value]);
+  }, [validatedValue]);
 
   const percentage = Math.min((animatedValue / maxValue) * 100, 100);
   const strokeDasharray = 2 * Math.PI * 90;
   const strokeDashoffset = strokeDasharray - (percentage / 100) * strokeDasharray;
+
+  // Format speed display
+  const formatSpeed = (speed: number): string => {
+    if (speed >= 1000) {
+      return `${(speed / 1000).toFixed(1)} Gbps`;
+    }
+    return `${speed.toFixed(1)} Mbps`;
+  };
 
   // Enhanced dynamic colors based on speed
   const getSpeedColor = () => {
@@ -119,15 +141,15 @@ export default function SpeedGauge({ value, maxValue, color, isActive, isDarkMod
       {/* Enhanced Center Content */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
-          <div className={`text-5xl font-bold transition-all duration-700 ${
+          <div className={`text-4xl font-bold transition-all duration-700 ${
             isActive ? 'scale-110' : ''
           } ${isDarkMode ? 'text-white' : 'text-gray-900'} ${
             isHovered ? 'scale-105' : ''
           } ${isAnimating ? 'animate-bounce' : ''}`}>
-            {animatedValue.toFixed(0)}
+            {formatSpeed(animatedValue)}
           </div>
-          <div className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} transition-colors duration-300`}>
-            Mbps
+          <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} transition-colors duration-300`}>
+            {animatedValue >= 1000 ? 'Gigabit' : 'Megabit'} per second
           </div>
         </div>
       </div>

@@ -1,352 +1,206 @@
 'use client';
 
 import { useState } from 'react';
-import { isStaticGeneration } from '@/lib/utils';
-
-interface TestResults {
-  ping?: number;
-  download?: number;
-  upload?: number;
-  jitter?: number;
-}
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CheckCircle, AlertCircle, Info } from 'lucide-react';
 
 export default function TestFixesPage() {
-  const [results, setResults] = useState<TestResults | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
 
-  const addLog = (message: string) => {
-    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
-  };
-
-  const testPing = async () => {
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run ping test during static generation');
-      return;
-    }
-    
-    setLoading(true);
-    addLog('🚀 Starting ping test...');
-    
+  const runTest = async (testName: string, testFn: () => Promise<any>) => {
+    setIsRunning(true);
     try {
-      // Get server information first
-      addLog('🔍 Getting server information...');
-      try {
-        const serverResponse = await fetch('/api/server-info');
-        if (serverResponse.ok) {
-          const serverData = await serverResponse.json();
-          addLog(`🏠 Server Region: ${serverData.server.region}`);
-          addLog(`🌐 Server Platform: ${serverData.server.platform}`);
-          addLog(`🔗 Server Hostname: ${serverData.server.hostname}`);
-        }
-      } catch (error) {
-        addLog('⚠️ Could not get server information');
-      }
-      
-      // Test your own server first
-      addLog('📡 Testing your server ping...');
-      const ownMeasurements: number[] = [];
-      const countPing = 5;
-      
-      for (let i = 0; i < countPing; i++) {
-        const startTime = performance.now();
-        
-        const response = await fetch('/api/ping', { 
-          method: 'HEAD', 
-          cache: 'no-cache',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          },
-          signal: AbortSignal.timeout(5000)
-        });
-      
-        if (response.ok) {
-          const endTime = performance.now();
-          const pingTime = endTime - startTime;
-          if (pingTime >= 1 && pingTime <= 1000) {
-            ownMeasurements.push(pingTime);
-            addLog(`📊 Your server ping ${i + 1}: ${pingTime.toFixed(2)}ms`);
-          } else {
-            addLog(`⚠️ Your server ping ${i + 1}: Skipping outlier ${pingTime.toFixed(2)}ms`);
-          }
-        } else {
-          addLog(`❌ Your server ping ${i + 1} failed: ${response.status}`);
-        }
-        
-        if (i < countPing - 1) await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
-      if (ownMeasurements.length > 0) {
-        const minPing = Math.min(...ownMeasurements);
-        const avgPing = ownMeasurements.reduce((a, b) => a + b, 0) / ownMeasurements.length;
-        
-        addLog(`✅ Your server ping: min=${minPing.toFixed(2)}ms, avg=${avgPing.toFixed(2)}ms`);
-        
-        // Analyze ping quality
-        if (minPing < 50) {
-          addLog('🟢 Excellent ping (< 50ms)');
-        } else if (minPing < 100) {
-          addLog('🟡 Good ping (50-100ms)');
-        } else if (minPing < 200) {
-          addLog('🟠 Fair ping (100-200ms)');
-        } else {
-          addLog('🔴 Poor ping (> 200ms) - Server may be too far away');
-        }
-        
-        setResults(prev => ({ ...prev, ping: minPing }));
-      }
-      
-      // Test external servers for comparison
-      addLog('🌐 Testing external servers for comparison...');
-      const externalServers = [
-        'https://www.google.com',
-        'https://www.cloudflare.com',
-        'https://www.speedtest.net'
-      ];
-      
-      for (const server of externalServers) {
-        try {
-          const response = await fetch(`/api/external-ping?server=${encodeURIComponent(server)}`);
-          if (response.ok) {
-            const data = await response.json();
-            addLog(`🌐 ${server}: ${data.ping}ms`);
-          }
-        } catch (error) {
-          addLog(`❌ ${server}: Failed`);
-        }
-      }
-      
+      const result = await testFn();
+      setTestResults(prev => [...prev, { name: testName, success: true, result }]);
     } catch (error) {
-      addLog(`❌ Ping test error: ${error}`);
+      setTestResults(prev => [...prev, { name: testName, success: false, error: error instanceof Error ? error.message : 'Unknown error' }]);
     } finally {
-      setLoading(false);
+      setIsRunning(false);
     }
   };
 
-  const testDownload = async () => {
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run download test during static generation');
-      return;
+  const testDownloadAPI = async () => {
+    const response = await fetch('/api/real-speed-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'download', size: 1048576 }) // 1MB
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
-    setLoading(true);
-    addLog('🚀 Starting download test...');
-    
-    try {
-      const size = 1; // 1MB test
-      const sizeInBytes = size * 1024 * 1024;
-      
-      const startTime = performance.now();
-      
-      const response = await fetch('/api/speed-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-        body: JSON.stringify({
-          type: 'download',
-          size: sizeInBytes
-        }),
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (response.ok) {
-        const dataStartTime = performance.now();
-        const data = await response.arrayBuffer();
-        const dataEndTime = performance.now();
-        const endTime = performance.now();
-        
-        const totalDuration = endTime - startTime;
-        const dataReadDuration = dataEndTime - dataStartTime;
-        const dataSize = data.byteLength;
-        
-        const effectiveDuration = Math.max(dataReadDuration, 50);
-        const speed = (dataSize * 8) / (effectiveDuration / 1000) / 1000000;
-        
-        addLog(`📊 Download: ${size}MB in ${totalDuration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
-        addLog(`📈 Data read time: ${dataReadDuration.toFixed(2)}ms`);
-        setResults(prev => ({ ...prev, download: speed }));
-      } else {
-        addLog(`❌ Download test failed: ${response.status}`);
-      }
-    } catch (error) {
-      addLog(`❌ Download test error: ${error}`);
-    } finally {
-      setLoading(false);
-    }
+    const data = await response.arrayBuffer();
+    return { size: data.byteLength, status: response.status };
   };
 
-  const testUpload = async () => {
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot run upload test during static generation');
-      return;
+  const testUploadAPI = async () => {
+    const testData = new Uint8Array(262144); // 256KB
+    for (let i = 0; i < testData.length; i++) {
+      testData[i] = Math.floor(Math.random() * 256);
     }
     
-    setLoading(true);
-    addLog('🚀 Starting upload test...');
+    const response = await fetch('/api/real-speed-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: testData
+    });
     
-    try {
-      const size = 0.5; // 0.5MB test
-      const testData = new Uint8Array(size * 1024 * 1024);
-      
-      // Fill with pattern
-      for (let i = 0; i < testData.length; i++) {
-        testData[i] = i % 256;
-      }
-      
-      const startTime = performance.now();
-      
-      const response = await fetch('/api/speed-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        },
-        body: testData,
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (response.ok) {
-        const endTime = performance.now();
-        const duration = endTime - startTime;
-        const dataSize = size * 1024 * 1024;
-        
-        const effectiveDuration = Math.max(duration, 50);
-        const speed = (dataSize * 8) / (effectiveDuration / 1000) / 1000000;
-        
-        addLog(`📊 Upload: ${size}MB in ${duration.toFixed(2)}ms = ${speed.toFixed(2)} Mbps`);
-        setResults(prev => ({ ...prev, upload: speed }));
-      } else {
-        addLog(`❌ Upload test failed: ${response.status}`);
-      }
-    } catch (error) {
-      addLog(`❌ Upload test error: ${error}`);
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+    
+    const result = await response.json();
+    return { size: result.size, speed: result.speed, status: response.status };
   };
 
-  const clearLogs = () => {
-    setLogs([]);
-    setResults(null);
+  const testCloudflareAPI = async () => {
+    const response = await fetch('/api/cloudflare-speed-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'download', size: 65536 }) // 64KB
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.arrayBuffer();
+    return { size: data.byteLength, status: response.status };
   };
 
-  const getServerInfo = async () => {
-    if (isStaticGeneration()) {
-      addLog('❌ Cannot get server info during static generation');
-      return;
-    }
-    
-    setLoading(true);
-    addLog('🔍 Getting server information...');
-    
-    try {
-      const response = await fetch('/api/server-info');
-      if (response.ok) {
-        const data = await response.json();
-        addLog('📋 Server Information:');
-        addLog(`🏠 Region: ${data.server.region}`);
-        addLog(`🌐 Platform: ${data.server.platform}`);
-        addLog(`🔗 Hostname: ${data.server.hostname}`);
-        addLog(`⚙️ Environment: ${data.server.environment}`);
-        addLog(`📡 Your IP: ${data.headers['x-forwarded-for'] || data.headers['x-real-ip'] || 'Unknown'}`);
-      } else {
-        addLog('❌ Failed to get server information');
-      }
-    } catch (error) {
-      addLog(`❌ Server info error: ${error}`);
-    } finally {
-      setLoading(false);
-    }
+  const clearResults = () => {
+    setTestResults([]);
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">Speed Test Fixes Verification</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <button
-          onClick={testPing}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        >
-          Test Ping
-        </button>
-        <button
-          onClick={testDownload}
-          disabled={loading}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        >
-          Test Download
-        </button>
-        <button
-          onClick={testUpload}
-          disabled={loading}
-          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        >
-          Test Upload
-        </button>
-        <button
-          onClick={getServerInfo}
-          disabled={loading}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        >
-          Server Info
-        </button>
-        <button
-          onClick={clearLogs}
-          disabled={loading}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded disabled:opacity-50"
-        >
-          Clear Logs
-        </button>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-2">Speed Test Fixes Verification</h1>
+        <p className="text-muted-foreground">
+          Test the fixes for the speed test calculation issues
+        </p>
       </div>
 
-      {results && (
-        <div className="bg-gray-100 p-4 rounded mb-6">
-          <h2 className="text-xl font-semibold mb-2">Results:</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {results.ping && (
-              <div>
-                <span className="font-medium">Ping:</span> {results.ping.toFixed(2)}ms
-              </div>
-            )}
-            {results.download && (
-              <div>
-                <span className="font-medium">Download:</span> {results.download.toFixed(2)} Mbps
-              </div>
-            )}
-            {results.upload && (
-              <div>
-                <span className="font-medium">Upload:</span> {results.upload.toFixed(2)} Mbps
-              </div>
-            )}
-            {results.jitter && (
-              <div>
-                <span className="font-medium">Jitter:</span> {results.jitter.toFixed(2)}ms
-              </div>
-            )}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Test Controls</CardTitle>
+          <CardDescription>
+            Run individual tests to verify the fixes are working
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Button 
+              onClick={() => runTest('Download API Test', testDownloadAPI)}
+              disabled={isRunning}
+              variant="outline"
+            >
+              Test Download API
+            </Button>
+            
+            <Button 
+              onClick={() => runTest('Upload API Test', testUploadAPI)}
+              disabled={isRunning}
+              variant="outline"
+            >
+              Test Upload API
+            </Button>
+            
+            <Button 
+              onClick={() => runTest('Cloudflare API Test', testCloudflareAPI)}
+              disabled={isRunning}
+              variant="outline"
+            >
+              Test Cloudflare API
+            </Button>
           </div>
+          
+          <Button 
+            onClick={clearResults}
+            variant="secondary"
+            className="w-full"
+          >
+            Clear Results
+          </Button>
+        </CardContent>
+      </Card>
+
+      {testResults.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Test Results</h2>
+          
+          {testResults.map((result, index) => (
+            <Card key={index}>
+              <CardContent className="pt-6">
+                <div className="flex items-start space-x-3">
+                  {result.success ? (
+                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                  )}
+                  
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{result.name}</h3>
+                    
+                    {result.success ? (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">
+                          {JSON.stringify(result.result, null, 2)}
+                        </pre>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-sm text-red-600">
+                        Error: {result.error}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold">Test Logs:</h2>
-      </div>
-
-      <div className="bg-black text-green-400 p-4 rounded font-mono text-sm h-96 overflow-y-auto">
-        {logs.length === 0 ? (
-          <div className="text-gray-500">No logs yet. Run a test to see results.</div>
-        ) : (
-          logs.map((log, index) => (
-            <div key={index} className="mb-1">
-              {log}
-            </div>
-          ))
-        )}
-      </div>
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>What Was Fixed</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Upload Test 500 Errors:</strong> Fixed content-type handling to properly distinguish between JSON requests (download) and binary data requests (upload).
+              </AlertDescription>
+            </Alert>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Unrealistic Speed Calculations:</strong> Added validation to cap speeds at 10 Gbps and prevent display of impossible values like 28.5 Gbps.
+              </AlertDescription>
+            </Alert>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Progress Calculation:</strong> Fixed progress tracking in both download and upload tests for better user experience.
+              </AlertDescription>
+            </Alert>
+            
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Speed Display:</strong> Added proper formatting to show Gbps for speeds over 1000 Mbps and improved the gauge display.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

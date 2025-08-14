@@ -2,7 +2,27 @@ import { NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, size } = await request.json();
+    const contentType = request.headers.get('content-type') || '';
+    
+    // Handle different content types
+    let type: string;
+    let size: number;
+    
+    if (contentType.includes('application/json')) {
+      // JSON request (download test)
+      const body = await request.json();
+      type = body.type;
+      size = body.size;
+    } else if (contentType.includes('application/octet-stream')) {
+      // Binary data request (upload test)
+      type = 'upload';
+      size = 0; // Size will be determined from the actual data
+    } else {
+      return new Response(JSON.stringify({ error: 'Invalid content type' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     
     // Use recommended timeouts and file sizes for reliability
     const timeout = parseInt(process.env.SPEED_TEST_TIMEOUT || '60000'); // 60 seconds
@@ -59,30 +79,26 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        let chunkCount = 0;
-        
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           
           chunks.push(value);
           totalSize += value.length;
-          chunkCount++;
           
           // Check for timeout
           if (performance.now() - startTime > timeout) {
             throw new Error('Upload timeout');
           }
+          
+          // Check for size limit
+          if (totalSize > maxFileSize) {
+            return new Response(JSON.stringify({ error: 'File size too large' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
         }
-        
-        // Validate file size
-        if (totalSize > maxFileSize) {
-          return new Response(JSON.stringify({ error: 'File size too large' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-        
       } finally {
         reader.releaseLock();
       }
@@ -116,6 +132,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
+    console.error('Speed test error:', error);
     return new Response(JSON.stringify({ 
       error: 'Test failed', 
       details: error instanceof Error ? error.message : 'Unknown error',
