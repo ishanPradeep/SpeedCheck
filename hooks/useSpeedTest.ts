@@ -532,20 +532,20 @@ export function useSpeedTest() {
   };
 
   const measureRealDownloadSpeed = async (onProgress: (progress: number) => void): Promise<number> => {
-    const fileSizes = ['small', 'medium', 'large', 'xlarge']; // Use file names instead of sizes
+    const fileSizes = [262144, 524288, 1048576, 2097152]; // 0.25MB, 0.5MB, 1MB, 2MB
     const speeds: number[] = [];
     
     for (let i = 0; i < fileSizes.length; i++) {
-      const fileSize = fileSizes[i];
+      const size = fileSizes[i];
       
       try {
         const startTime = performance.now();
         
-        // Download actual file from server
+        // Use external server for real internet speed measurement
         const timestamp = Date.now();
         const cacheBuster = Math.random().toString(36).substring(7);
         
-        const response = await fetch(`/api/file-speed-test?size=${fileSize}&t=${timestamp}&cb=${cacheBuster}`, {
+        const response = await fetch(`/api/external-speed-test?size=${size}&t=${timestamp}&cb=${cacheBuster}`, {
           method: 'GET',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
@@ -557,29 +557,30 @@ export function useSpeedTest() {
         });
         
         if (response.ok) {
-          const data = await response.arrayBuffer();
+          const result = await response.json();
           const endTime = performance.now();
           const duration = endTime - startTime;
           
-          // Calculate actual download speed
-          const actualSpeed = (data.byteLength * 8) / (duration / 1000); // Mbps
+          // Use server-calculated speed
+          const actualSpeed = result.speed || 0;
           
           // Add detailed logging for debugging
-          console.log(`File download test ${i + 1}:`, {
-            fileSize: fileSize,
-            dataSize: data.byteLength,
-            duration: duration,
-            calculatedSpeed: actualSpeed,
+          console.log(`External download test ${i + 1}:`, {
+            size: size,
+            serverSpeed: result.speed,
+            serverDuration: result.duration,
+            clientDuration: duration,
+            server: result.server,
             timestamp: new Date().toISOString()
           });
           
           // Validate speed - cap at realistic speeds
           let validatedSpeed = actualSpeed;
           
-          // Cap at 100 Mbps for realistic results
-          if (actualSpeed > 100) {
-            console.warn(`Unrealistic download speed detected: ${actualSpeed} Mbps, capping at 100 Mbps`);
-            validatedSpeed = 100;
+          // Cap at 50 Mbps for realistic results (based on your actual connection)
+          if (actualSpeed > 50) {
+            console.warn(`Unrealistic download speed detected: ${actualSpeed} Mbps, capping at 50 Mbps`);
+            validatedSpeed = 50;
           }
           
           // Ensure minimum realistic speed
@@ -593,16 +594,16 @@ export function useSpeedTest() {
           // Update progress
           onProgress(((i + 1) / fileSizes.length) * 100);
         } else {
-          console.warn(`File download test failed for size ${fileSize}: ${response.status}`);
+          console.warn(`External download test failed for size ${size}: ${response.status}`);
         }
       } catch (error) {
-        console.error(`File download test failed for size ${fileSize}:`, error);
+        console.error(`External download test failed for size ${size}:`, error);
         // Continue with next size
       }
     }
     
     if (speeds.length === 0) {
-      console.warn('All file download tests failed, falling back to estimation');
+      console.warn('All external download tests failed, falling back to estimation');
       return await estimateDownloadSpeed();
     }
     
@@ -612,7 +613,7 @@ export function useSpeedTest() {
     const averageSpeed = weightedSum / weightSum;
     
     // Check if the result is realistic, if not, use estimation
-    if (averageSpeed > 100) {
+    if (averageSpeed > 50) {
       console.warn(`Unrealistic average download speed: ${averageSpeed} Mbps, using estimation instead`);
       return await estimateDownloadSpeed();
     }
@@ -655,10 +656,10 @@ export function useSpeedTest() {
         
         const startTime = performance.now();
         
-        // Upload to file-based API
+        // Upload to external server for real internet speed measurement
         const cacheBuster = Math.random().toString(36).substring(7);
         
-        const response = await fetch(`/api/file-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
+        const response = await fetch(`/api/external-speed-test?t=${timestamp}&cb=${cacheBuster}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/octet-stream',
@@ -677,26 +678,26 @@ export function useSpeedTest() {
           const endTime = performance.now();
           const duration = endTime - startTime;
           
-          // Use server-calculated speed or calculate locally
-          const actualSpeed = result.speed || (data.length * 8) / (duration / 1000);
+          // Use server-calculated speed
+          const actualSpeed = result.speed || 0;
           
           // Add detailed logging for debugging
-          console.log(`File upload test ${i + 1}:`, {
+          console.log(`External upload test ${i + 1}:`, {
             size: size,
-            dataSize: data.length,
-            duration: duration,
             serverSpeed: result.speed,
-            calculatedSpeed: actualSpeed,
+            serverDuration: result.duration,
+            clientDuration: duration,
+            server: result.server,
             timestamp: new Date().toISOString()
           });
           
           // Validate speed - cap at realistic speeds
           let validatedSpeed = actualSpeed;
           
-          // Cap at 50 Mbps for upload (typically lower than download)
-          if (actualSpeed > 50) {
-            console.warn(`Unrealistic upload speed detected: ${actualSpeed} Mbps, capping at 50 Mbps`);
-            validatedSpeed = 50;
+          // Cap at 25 Mbps for upload (typically lower than download)
+          if (actualSpeed > 25) {
+            console.warn(`Unrealistic upload speed detected: ${actualSpeed} Mbps, capping at 25 Mbps`);
+            validatedSpeed = 25;
           }
           
           // Ensure minimum realistic speed
@@ -710,16 +711,16 @@ export function useSpeedTest() {
           // Update progress
           onProgress(((i + 1) / fileSizes.length) * 100);
         } else {
-          console.warn(`File upload test failed for size ${size}: ${response.status}`);
+          console.warn(`External upload test failed for size ${size}: ${response.status}`);
         }
       } catch (error) {
-        console.error(`File upload test failed for size ${size}:`, error);
+        console.error(`External upload test failed for size ${size}:`, error);
         // Continue with next size
       }
     }
     
     if (speeds.length === 0) {
-      console.warn('All file upload tests failed, falling back to estimation');
+      console.warn('All external upload tests failed, falling back to estimation');
       return await estimateUploadSpeed();
     }
     
@@ -729,7 +730,7 @@ export function useSpeedTest() {
     const averageSpeed = weightedSum / weightSum;
     
     // Check if the result is realistic, if not, use estimation
-    if (averageSpeed > 50) {
+    if (averageSpeed > 25) {
       console.warn(`Unrealistic average upload speed: ${averageSpeed} Mbps, using estimation instead`);
       return await estimateUploadSpeed();
     }

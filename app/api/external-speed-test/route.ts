@@ -1,27 +1,68 @@
 import { NextRequest } from 'next/server';
 
+// External speed test servers (similar to Speedtest.net approach)
+const SPEED_TEST_SERVERS = [
+  'https://httpbin.org/bytes/',
+  'https://postman-echo.com/bytes/',
+  'https://httpbin.org/delay/',
+];
+
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const type = searchParams.get('type') || 'ping';
-  
   try {
-    switch (type) {
-      case 'ping':
-        return await measureExternalPing();
-      case 'download':
-        return await measureExternalDownload();
-      case 'upload':
-        return await measureExternalUpload();
-      default:
-        return new Response(JSON.stringify({ error: 'Invalid test type' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
+    const { searchParams } = new URL(request.url);
+    const size = parseInt(searchParams.get('size') || '1048576'); // Default 1MB
+    
+    // Use external server for real internet speed measurement
+    const server = SPEED_TEST_SERVERS[0]; // Use httpbin for download test
+    const testUrl = `${server}${size}`;
+    
+    const startTime = performance.now();
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+      signal: AbortSignal.timeout(30000), // 30 second timeout
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-  } catch (error) {
+    
+    const data = await response.arrayBuffer();
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    // Calculate real download speed
+    const downloadSpeed = (data.byteLength * 8) / (duration / 1000); // Mbps
+    
     return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: Date.now()
+      success: true,
+      type: 'download',
+      size: data.byteLength,
+      duration,
+      speed: Math.max(downloadSpeed, 0.1),
+      server: testUrl,
+      timestamp: Date.now(),
+      method: 'external-server',
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+    
+  } catch (error) {
+    console.error('External speed test error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'External speed test failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: Date.now(),
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -29,108 +70,111 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function measureExternalPing() {
-  const servers = [
-    'https://www.google.com',
-    'https://www.cloudflare.com',
-    'https://www.speedtest.net',
-    'https://www.fast.com',
-    'https://www.netflix.com'
-  ];
-  
-  const pings: { server: string; ping: number }[] = [];
-  
-  for (const server of servers) {
-    try {
-      const startTime = performance.now();
-      
-      const response = await fetch(server, {
-        method: 'HEAD',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        signal: AbortSignal.timeout(3000)
+export async function POST(request: NextRequest) {
+  try {
+    const contentType = request.headers.get('content-type') || '';
+    
+    if (!contentType.includes('application/octet-stream')) {
+      return new Response(JSON.stringify({ error: 'Invalid content type' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
       });
-      
-      if (response.ok) {
-        const endTime = performance.now();
-        const ping = endTime - startTime;
+    }
+    
+    // Use external server for upload test
+    const server = 'https://httpbin.org/post';
+    
+    const startTime = performance.now();
+    
+    // Read the uploaded data
+    const chunks: Uint8Array[] = [];
+    let totalSize = 0;
+    
+    const reader = request.body?.getReader();
+    if (!reader) {
+      return new Response(JSON.stringify({ error: 'No request body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
         
-        if (ping >= 1 && ping <= 1000) {
-          pings.push({ server, ping: Math.round(ping) });
+        chunks.push(value);
+        totalSize += value.length;
+        
+        // Limit upload size to 5MB
+        if (totalSize > 5242880) {
+          return new Response(JSON.stringify({ error: 'File too large' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
         }
       }
-    } catch (error) {
-      // Continue with next server
+    } finally {
+      reader.releaseLock();
     }
+    
+    // Combine chunks into single buffer
+    const data = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of chunks) {
+      data.set(chunk, offset);
+      offset += chunk.length;
+    }
+    
+    // Upload to external server
+    const uploadResponse = await fetch(server, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': totalSize.toString(),
+      },
+      body: data,
+      signal: AbortSignal.timeout(30000), // 30 second timeout
+    });
+    
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    if (!uploadResponse.ok) {
+      throw new Error(`Upload failed: HTTP ${uploadResponse.status}`);
+    }
+    
+    // Calculate real upload speed
+    const uploadSpeed = (totalSize * 8) / (duration / 1000); // Mbps
+    
+    return new Response(JSON.stringify({
+      success: true,
+      type: 'upload',
+      size: totalSize,
+      duration,
+      speed: Math.max(uploadSpeed, 0.1),
+      server: server,
+      timestamp: Date.now(),
+      method: 'external-server',
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+    
+  } catch (error) {
+    console.error('External upload test error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'External upload test failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: Date.now(),
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-  
-  if (pings.length === 0) {
-    throw new Error('All ping tests failed');
-  }
-  
-  // Sort by ping and return the best result
-  pings.sort((a, b) => a.ping - b.ping);
-  const bestPing = pings[0];
-  
-  return new Response(JSON.stringify({
-    type: 'ping',
-    result: bestPing.ping,
-    server: bestPing.server,
-    allResults: pings,
-    timestamp: Date.now()
-  }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
-async function measureExternalDownload() {
-  // For now, we'll simulate a download test
-  // In a real implementation, you would integrate with Speedtest.net API
-  
-  // Simulate download test duration
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Return realistic download speed based on your actual connection
-  // Based on your target: 8.59 Mbps
-  const baseSpeed = 8.5; // Base speed around your target
-  const variation = (Math.random() - 0.5) * 2; // ±1 Mbps variation
-  const downloadSpeed = Math.max(1, baseSpeed + variation); // Minimum 1 Mbps
-  
-  return new Response(JSON.stringify({
-    type: 'download',
-    result: Math.round(downloadSpeed * 100) / 100,
-    unit: 'Mbps',
-    timestamp: Date.now()
-  }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
-async function measureExternalUpload() {
-  // For now, we'll simulate an upload test
-  // In a real implementation, you would integrate with Speedtest.net API
-  
-  // Simulate upload test duration
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Return realistic upload speed based on your actual connection
-  // Based on your target: 6.08 Mbps
-  const baseSpeed = 6.0; // Base speed around your target
-  const variation = (Math.random() - 0.5) * 1.5; // ±0.75 Mbps variation
-  const uploadSpeed = Math.max(1, baseSpeed + variation); // Minimum 1 Mbps
-  
-  return new Response(JSON.stringify({
-    type: 'upload',
-    result: Math.round(uploadSpeed * 100) / 100,
-    unit: 'Mbps',
-    timestamp: Date.now()
-  }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
 }
